@@ -273,7 +273,7 @@
 
   <section class="stats" aria-label="Résumé de la session">
     <div class="card stat">
-      <div class="label">Temples déposés</div>
+      <div class="label">Temples apportés</div>
       <div id="statTotal" class="value gold">–</div>
     </div>
     <div class="card stat">
@@ -342,7 +342,7 @@
   // (https://<owner>.github.io/<repo>/, lecture seule des scores publiés par son PC).
   const LOCAL = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
   const REFRESH_MS = LOCAL ? 30000 : 60000;
-  const STALE_S = 20 * 60;
+  const STALE_S = 45 * 60; // les tâches planifiées GitHub peuvent prendre 10-20 min de retard
   let DATA_URL = "/api/stats";
   if (!LOCAL) {
     const owner = location.hostname.split(".")[0];
@@ -442,7 +442,6 @@
     const d = data;
     if (!d) return;
     const contributors = d.contributors || [];
-    const depositors = contributors.filter((c) => c.added > 0);
     const recent = d.recent || [];
     const runners = d.runners || [];
 
@@ -488,8 +487,9 @@
     }
 
     // Stats
-    $("statTotal").textContent = d.totalAdded;
-    $("statPlayers").textContent = depositors.length;
+    // Net : un temple déposé puis retiré (hors runners) ne compte pas.
+    $("statTotal").textContent = d.totalAdded - (d.totalRemoved || 0);
+    $("statPlayers").textContent = contributors.filter((c) => c.score > 0).length;
     const lastAdd = recent.find((e) => e.action === "added");
     $("statLast").textContent = lastAdd ? ago(lastAdd.time) : "–";
 
@@ -557,7 +557,7 @@
     const every = Number(d.pollMinutes) || 2;
     $("foot").textContent = LOCAL
       ? `Source : historique du coffre de guilde sur pathofexile.com · relu toutes les ${plural(every, "minute", "minutes")}`
-      : "Source : historique du coffre de guilde sur pathofexile.com · mise à jour automatique (jusqu'à 5 min de délai)";
+      : "Source : historique du coffre de guilde sur pathofexile.com · mise à jour automatique toutes les 5 à 15 min";
   }
 
   // ---------- connexion admin

@@ -1,0 +1,72 @@
+# Suivi des temples sans PC allume : toutes les 5 minutes, GitHub relit l'historique du coffre
+# de guilde et publie le classement (data.json) sur la branche "data", lue par la page publique.
+#
+# Reset (chef de guilde uniquement) : onglet Actions > Temple tracker > Run workflow > "reset".
+# Seuls les comptes avec un acces en ecriture au depot voient le bouton "Run workflow".
+#
+# Le POESESSID est un secret du depot (Settings > Secrets and variables > Actions > POESESSID) :
+# chiffre, jamais affiche dans les logs, jamais dans le code.
+
+name: Temple tracker
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "sync = relire l'historique maintenant ; reset = nouvelle session, tout le monde repart a 0"
+        type: choice
+        options:
+          - sync
+          - reset
+        default: sync
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temple-tracker
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Code du tracker
+        uses: actions/checkout@v4
+
+      - name: Etat et scores (branche data)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data-branch
+
+      - name: Lire l'historique du coffre de guilde
+        shell: powershell
+        env:
+          POESESSID: ${{ secrets.POESESSID }}
+          TRACKER_ACTION: ${{ inputs.action }}
+        run: |
+          if (-not $env:POESESSID) {
+            Write-Host "Secret POESESSID absent : rien a faire. Ajoute-le dans Settings > Secrets and variables > Actions."
+            exit 0
+          }
+          $reset = $env:TRACKER_ACTION -eq 'reset'
+          & .\server.ps1 -Once -Reset:$reset -ConfigPath config.actions.json -StatePath data-branch\state.json -PublicPath data-branch\data.json
+          exit 0
+
+      - name: Publier le classement
+        shell: bash
+        working-directory: data-branch
+        run: |
+          if [ -z "$(git status --porcelain -- data.json)" ]; then
+            echo "Classement inchange : rien a publier."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data.json state.json
+          git commit -q -m "Scores mis a jour"
+          git push -q origin HEAD:data

@@ -14,7 +14,11 @@
 param(
     [string]$ConfigPath = '',
     [string]$StatePath = '',
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    # Mode GitHub Actions : un seul passage (lecture + reset eventuel), ecrit data.json et s'arrete.
+    [switch]$Once,
+    [switch]$Reset,
+    [string]$PublicPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +44,7 @@ $ConfigDefaults = [ordered]@{
     pollMinutes      = 2
     itemName         = 'Chronicle of Atzoatl'
     templeRunners    = @()
+    initialMembers   = @()
     firstSessionStart = ''
     githubRepo       = ''
     githubBranch     = 'data'
@@ -90,6 +95,8 @@ function Read-Config {
             $cfg | Add-Member -NotePropertyName $key -NotePropertyValue $ConfigDefaults[$key] -Force
         }
     }
+    # Sur GitHub Actions, le POESESSID vient d'un secret (variable d'environnement), pas du fichier.
+    if ($env:POESESSID) { $cfg.poesessid = ([string]$env:POESESSID).Trim() }
     $script:LastGoodConfig = $cfg
     return $cfg
 }
@@ -123,6 +130,7 @@ function Import-State {
     return [pscustomobject]@{
         version      = 1
         sessionStart = [int64](Get-Prop $s 'sessionStart' 0)
+        resets       = [int](Get-Prop $s 'resets' 0)
         cursorTime   = [int64](Get-Prop $s 'cursorTime' 0)
         lastPoll     = [int64](Get-Prop $s 'lastPoll' 0)
         lastSuccess  = [int64](Get-Prop $s 'lastSuccess' 0)
@@ -458,6 +466,7 @@ function Reset-Session($Cfg) {
     $start = $now
     foreach ($e in $State.entries) { if ([int64]$e.time -ge $start) { $start = [int64]$e.time + 1 } }
     $State.sessionStart = $start
+    $State.resets = [int]$State.resets + 1
     $State.entries = New-Object System.Collections.ArrayList
     $Seen.Clear()
     Save-State
@@ -553,15 +562,12 @@ function Get-RemoteDataSha($Cfg) {
 
 # Publie seulement si le classement a change, ou toutes les 15 min pour montrer que le
 # serveur tourne toujours. Un echec est retente au cycle suivant.
-function Publish-Data([switch]$Force) {
-    $cfg = Get-Config
-    if (-not [string]$cfg.githubRepo) { return }
-    if (-not $script:GhPath) { $script:Pub.error = 'GitHub CLI (gh) introuvable'; return }
-
-    $stats = Get-Stats -Cfg $cfg -IsAdmin $false
+# Ce que voit la page publique : aucun secret, pas de detail d'erreur.
+function Get-PublicView($Cfg) {
+    $stats = Get-Stats -Cfg $Cfg -IsAdmin $false
     $errInfo = $null
     if ($State.lastError) { $errInfo = [pscustomobject]@{ code = [string](Get-Prop $State.lastError 'code' '') } }
-    $view = [pscustomobject]@{
+    return [pscustomobject]@{
         sessionStart = $stats.sessionStart
         lastError    = $errInfo
         pollMinutes  = $stats.pollMinutes
@@ -575,6 +581,21 @@ function Publish-Data([switch]$Force) {
         contributors = $stats.contributors
         recent       = $stats.recent
     }
+}
+
+function Get-Sha256Hex([string]$Text) {
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try { $hash = $sha.ComputeHash($Utf8.GetBytes($Text)) } finally { $sha.Dispose() }
+    return -join ($hash | ForEach-Object { $_.ToString('x2') })
+}
+
+function Publish-Data([switch]$Force) {
+    $cfg = Get-Config
+    if (-not [string]$cfg.githubRepo) { return }
+    if (-not $script:GhPath) { $script:Pub.error = 'GitHub CLI (gh) introuvable'; return }
+
+    $stats = Get-Stats -Cfg $cfg -IsAdmin $false
+    $view = Get-PublicView $cfg
     $signature = ConvertTo-Json -InputObject $view -Depth 8 -Compress
     $now = Get-UnixNow
     if (-not $Force -and $signature -eq $script:Pub.signature -and ($now - $script:Pub.lastPushAt) -lt 900) { return }
@@ -755,7 +776,7 @@ try {
     exit 1
 }
 $pw = [string]$startupConfig.adminPassword
-if ([string]::IsNullOrWhiteSpace($pw) -or $pw -eq 'change-moi') {
+if (-not $Once -and ([string]::IsNullOrWhiteSpace($pw) -or $pw -eq 'change-moi')) {
     Write-Host ''
     Write-Host 'Choisis un mot de passe admin dans config.json (champ "adminPassword"), puis relance.' -ForegroundColor Yellow
     exit 1
@@ -769,29 +790,69 @@ if ([int64]$startupConfig.guildId -le 0 -and -not $startupConfig.apiUrl) {
 $State = Import-State
 $Seen = New-Object 'System.Collections.Generic.HashSet[string]'
 foreach ($e in $State.entries) { [void]$Seen.Add([string]$e.id) }
-# Tant qu'aucun reset n'a eu lieu, la premiere session commence a "firstSessionStart"
-# (heure locale, ex. "2026-11-26" ou "2026-11-26 21:30"). Vide = tout l'historique disponible.
+# Tant qu'aucun reset n'a eu lieu, la premiere session commence a "firstSessionStart",
+# ex. "2026-11-26T16:49:00+01:00" (avec le decalage horaire : GitHub Actions tourne en UTC).
+# Sans decalage, c'est l'heure du PC. Vide = tout l'historique disponible.
 $firstStart = $startupConfig.firstSessionStart
-if ([int64]$State.sessionStart -eq 0 -and $firstStart) {
-    $dt = [DateTime]::MinValue
-    if ($firstStart -is [DateTime]) { $dt = $firstStart }
-    elseif (-not [DateTime]::TryParse([string]$firstStart, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$dt)) {
-        Write-Host "firstSessionStart illisible dans config.json : '$firstStart' (format attendu : 2026-11-26 ou 2026-11-26 21:30)" -ForegroundColor Yellow
-        $dt = [DateTime]::MinValue
+if ([int]$State.resets -eq 0 -and $firstStart) {
+    $dto = [DateTimeOffset]::MinValue
+    $parsed = $true
+    if ($firstStart -is [DateTime]) { $dto = [DateTimeOffset]$firstStart }
+    elseif (-not [DateTimeOffset]::TryParse([string]$firstStart, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$dto)) {
+        Write-Host "firstSessionStart illisible dans la config : '$firstStart' (format attendu : 2026-11-26T16:49:00+01:00)" -ForegroundColor Yellow
+        $parsed = $false
     }
-    if ($dt -ne [DateTime]::MinValue) {
-        $State.sessionStart = [int64]([DateTimeOffset]$dt).ToUnixTimeSeconds()
-        Write-Log "Premiere session : on compte a partir du $($dt.ToString('dd/MM/yyyy HH:mm'))"
+    if ($parsed) {
+        $wanted = [int64]$dto.ToUnixTimeSeconds()
+        if ($wanted -ne [int64]$State.sessionStart) {
+            # Debut avance dans le passe : il faut relire l'historique plus ancien.
+            if ($wanted -lt [int64]$State.sessionStart) { $State.cursorTime = [int64]0 }
+            $State.sessionStart = $wanted
+            Write-Log "Premiere session : on compte a partir du $($dto.ToLocalTime().ToString('dd/MM/yyyy HH:mm:ss'))"
+        }
     }
 }
 
 $MemberSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($m in $State.members) { [void]$MemberSet.Add([string]$m) }
+foreach ($m in @($startupConfig.initialMembers)) { if ($m) { Add-Participant ([string]$m).Trim() } }
 foreach ($e in $State.entries) {
     if ([int64]$e.time -lt [int64]$State.sessionStart) { continue }
     if (Test-Counted ([string]$e.account) ([string]$e.action) $startupConfig) { Add-Participant ([string]$e.account) }
 }
 Save-State
+
+if ($Once) {
+    # Un passage : lecture de l'historique, reset si demande, puis data.json. Le fichier n'est
+    # reecrit que si le classement a change (champ "rev"), lors d'un reset, ou toutes les
+    # 15 min pour que la page sache que le suivi tourne toujours.
+    try { Invoke-Poll } catch { Write-Log "Erreur de synchro : $($_.Exception.Message)" }
+    if ($Reset) { Reset-Session $startupConfig }
+    if (-not $PublicPath) { $PublicPath = Join-Path $DataDir 'data.json' }
+
+    $view = Get-PublicView $startupConfig
+    $rev = Get-Sha256Hex (ConvertTo-Json -InputObject $view -Depth 8 -Compress)
+    $now = Get-UnixNow
+    $prevRev = ''
+    $prevAt = [int64]0
+    if (Test-Path -LiteralPath $PublicPath) {
+        try {
+            $prev = [IO.File]::ReadAllText($PublicPath, $Utf8) | ConvertFrom-Json
+            $prevRev = [string](Get-Prop $prev 'rev' '')
+            $prevAt = [int64](Get-Prop $prev 'publishedAt' 0)
+        } catch { }
+    }
+    if ($Reset -or $rev -ne $prevRev -or ($now - $prevAt) -ge 900) {
+        $view | Add-Member -NotePropertyName lastSuccess -NotePropertyValue $State.lastSuccess
+        $view | Add-Member -NotePropertyName publishedAt -NotePropertyValue $now
+        $view | Add-Member -NotePropertyName rev -NotePropertyValue $rev
+        [IO.File]::WriteAllText($PublicPath, (ConvertTo-Json -InputObject $view -Depth 8 -Compress), $Utf8)
+        Write-Log "data.json mis a jour ($($view.totalAdded) temple(s) depose(s))"
+    } else {
+        Write-Log 'Classement inchange : rien a publier'
+    }
+    exit 0
+}
 
 $port = [int]$startupConfig.port
 $listener = [System.Net.HttpListener]::new()
