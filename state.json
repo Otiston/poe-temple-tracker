@@ -2,9 +2,9 @@
     "version":  1,
     "sessionStart":  1795708140,
     "resets":  0,
-    "cursorTime":  1795733475,
-    "lastPoll":  1795733750,
-    "lastSuccess":  1795733751,
+    "cursorTime":  1795735737,
+    "lastPoll":  1795736451,
+    "lastSuccess":  1795736451,
     "lastError":  null,
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
@@ -268,6 +268,30 @@
                         "time":  1795733462,
                         "account":  "Shaba87#5191",
                         "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4279502930",
+                        "time":  1795734211,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4279502921",
+                        "time":  1795734210,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4279502912",
+                        "time":  1795734210,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
                         "league":  "Covens",
                         "stash":  "Atziri"
                     }
