@@ -475,13 +475,21 @@ function Get-PublicUrl($Cfg) {
     return "https://$($parts[0].ToLowerInvariant()).github.io/$($parts[1])/"
 }
 
+# $Body (JSON) passe par un fichier temporaire UTF-8 sans BOM : via stdin, .NET peut
+# ajouter un BOM que l'API GitHub refuse ("Problems parsing JSON").
 function Invoke-Gh([string[]]$GhArgs, [string]$Body) {
+    $tmp = $null
+    $allArgs = @($GhArgs)
+    if ($Body) {
+        $tmp = [IO.Path]::GetTempFileName()
+        [IO.File]::WriteAllText($tmp, $Body, $Utf8)
+        $allArgs += @('--input', $tmp)
+    }
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $script:GhPath
-    $psi.Arguments = (@($GhArgs) | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join ' '
+    $psi.Arguments = ($allArgs | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join ' '
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
-    $psi.RedirectStandardInput = $true
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.StandardOutputEncoding = $Utf8
@@ -490,8 +498,6 @@ function Invoke-Gh([string[]]$GhArgs, [string]$Body) {
     try {
         $outTask = $p.StandardOutput.ReadToEndAsync()
         $errTask = $p.StandardError.ReadToEndAsync()
-        if ($Body) { $p.StandardInput.Write($Body) }
-        $p.StandardInput.Close()
         if (-not $p.WaitForExit(60000)) {
             try { $p.Kill() } catch { }
             return @{ ok = $false; out = ''; err = 'gh ne repond pas (timeout)'; json = $null }
@@ -503,6 +509,7 @@ function Invoke-Gh([string[]]$GhArgs, [string]$Body) {
         return @{ ok = ($p.ExitCode -eq 0); out = $out; err = $err; json = $json }
     } finally {
         $p.Dispose()
+        if ($tmp) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -529,7 +536,7 @@ function Initialize-PublishTarget($Cfg) {
         $ref = Invoke-Gh @('api', "repos/$repo/git/ref/heads/$default")
         if (-not $ref.ok) { $script:Pub.error = "branche $default : $($ref.err)"; return $false }
         $body = ConvertTo-Json -Compress -InputObject @{ ref = "refs/heads/$branch"; sha = [string]$ref.json.object.sha }
-        $c = Invoke-Gh @('api', '--method', 'POST', "repos/$repo/git/refs", '--input', '-') $body
+        $c = Invoke-Gh @('api', '--method', 'POST', "repos/$repo/git/refs") $body
         if (-not $c.ok) { $script:Pub.error = "creation de la branche $branch : $($c.err)"; return $false }
         Write-Log "Branche '$branch' creee sur $repo"
     }
@@ -587,7 +594,7 @@ function Publish-Data([switch]$Force) {
     for ($attempt = 1; $attempt -le 2; $attempt++) {
         $body = @{ message = "Scores : $($stats.totalAdded) temple(s) depose(s)"; content = $content; branch = [string]$cfg.githubBranch }
         if ($script:Pub.sha) { $body.sha = $script:Pub.sha }
-        $r = Invoke-Gh @('api', '--method', 'PUT', "repos/$($cfg.githubRepo)/contents/data.json", '--input', '-') (ConvertTo-Json -InputObject $body -Compress)
+        $r = Invoke-Gh @('api', '--method', 'PUT', "repos/$($cfg.githubRepo)/contents/data.json") (ConvertTo-Json -InputObject $body -Compress)
         if ($r.ok) {
             $script:Pub.sha = [string]$r.json.content.sha
             $script:Pub.signature = $signature
