@@ -826,6 +826,15 @@ if ($Once) {
     # Un passage : lecture de l'historique, reset si demande, puis data.json. Le fichier n'est
     # reecrit que si le classement a change (champ "rev"), lors d'un reset, ou toutes les
     # 15 min pour que la page sache que le suivi tourne toujours.
+
+    # Diagnostic sans fuite : longueur, format et debut du SHA-256 du cookie (irreversible),
+    # pour verifier que le secret GitHub est bien le meme que celui du PC.
+    $sessid = ([string]$startupConfig.poesessid).Trim()
+    $fmt = 'inattendu (32 caracteres 0-9a-f attendus)'
+    if ($sessid -match '^[0-9a-f]{32}$') { $fmt = 'ok' }
+    Write-Log "POESESSID : $($sessid.Length) caracteres, format $fmt, empreinte $((Get-Sha256Hex $sessid).Substring(0, 8))"
+    Remove-Variable sessid
+
     try { Invoke-Poll } catch { Write-Log "Erreur de synchro : $($_.Exception.Message)" }
     if ($Reset) { Reset-Session $startupConfig }
     if (-not $PublicPath) { $PublicPath = Join-Path $DataDir 'data.json' }
