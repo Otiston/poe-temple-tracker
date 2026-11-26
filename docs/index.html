@@ -418,12 +418,58 @@
     return Object.assign({ status: r.status, httpOk: r.ok }, j);
   }
 
+  // ---------- admin sur la page GitHub
+  // admin.json contient un jeton GitHub (droit unique : lancer la tâche de ce dépôt) chiffré
+  // avec le mot de passe admin (PBKDF2-SHA256 + AES-CBC + HMAC, cf. tools/set-admin-token.ps1).
+  // Le mot de passe le déchiffre ici, dans le navigateur ; rien n'est envoyé ailleurs qu'à GitHub.
+  let adminCfg = null;
+  let ghToken = null;
+  let pending = null;
+  let fastUntil = 0;
+
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  async function unlock(blob, password) {
+    const enc = new TextEncoder();
+    const salt = b64(blob.salt), iv = b64(blob.iv), cipher = b64(blob.data), mac = b64(blob.mac);
+    const base = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
+    const bits = new Uint8Array(await crypto.subtle.deriveBits(
+      { name: "PBKDF2", hash: "SHA-256", salt, iterations: blob.iter }, base, 512));
+    const macKey = await crypto.subtle.importKey("raw", bits.slice(32), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const signed = new Uint8Array(iv.length + cipher.length);
+    signed.set(iv);
+    signed.set(cipher, iv.length);
+    if (!(await crypto.subtle.verify("HMAC", macKey, mac, signed))) return null;
+    const aesKey = await crypto.subtle.importKey("raw", bits.slice(0, 32), { name: "AES-CBC" }, false, ["decrypt"]);
+    return new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-CBC", iv }, aesKey, cipher));
+  }
+
+  async function dispatch(action) {
+    const r = await fetch(`https://api.github.com/repos/${adminCfg.repo}/actions/workflows/${adminCfg.workflow}/dispatches`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${ghToken}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: adminCfg.ref || "main", inputs: { action } })
+    });
+    if (r.status === 204) {
+      pending = { action, at: Math.floor(Date.now() / 1000) };
+      fastUntil = Date.now() + 10 * 60000;
+      return "";
+    }
+    if (r.status === 401) return "Jeton GitHub expiré ou révoqué : relance tools/set-admin-token.ps1.";
+    if (r.status === 403 || r.status === 404) return "Le jeton GitHub n'a pas le droit de lancer la tâche.";
+    return `GitHub a refusé la demande (HTTP ${r.status}).`;
+  }
+
   async function load() {
     try {
       const r = await fetch(DATA_URL, { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
       data = await r.json();
       skewMs = LOCAL && data.now ? data.now * 1000 - Date.now() : 0;
+      // Demande admin terminée quand les scores publiés en tiennent compte.
+      if (pending && (pending.action === "reset" ? data.sessionStart >= pending.at - 60 : (data.publishedAt || 0) >= pending.at)) {
+        toast(pending.action === "reset" ? "Nouvelle session : tout le monde repart de 0" : "Historique relu");
+        pending = null;
+      }
       render();
     } catch (e) {
       const s = $("status");
@@ -472,11 +518,19 @@
     }
 
     // Admin
-    $("adminBar").hidden = !d.isAdmin;
-    $("btnAdmin").hidden = d.isAdmin || !LOCAL;
-    $("adminDetail").textContent = d.isAdmin ? detail : "";
+    const admin = d.isAdmin || !!ghToken;
+    $("adminBar").hidden = !admin;
+    $("btnAdmin").hidden = admin || (!LOCAL && !adminCfg);
+    $("adminDetail").textContent = admin ? detail : "";
     const pub = $("adminPub");
     pub.replaceChildren();
+    if (ghToken) {
+      const runs = `https://github.com/${adminCfg.repo}/actions/workflows/${adminCfg.workflow}`;
+      if (pending) {
+        pub.append(`${pending.action === "reset" ? "Reset demandé" : "Synchro demandée"} ${ago(pending.at)} : la page se met à jour d'ici quelques minutes · `);
+      }
+      pub.append(el("a", { href: runs, target: "_blank", rel: "noopener" }, "voir les tâches sur GitHub"));
+    }
     if (d.isAdmin && d.publish) {
       const p = d.publish;
       pub.append("Page publique : ",
@@ -571,6 +625,25 @@
     ev.preventDefault();
     const btn = ev.submitter || $("loginForm").querySelector("[type=submit]");
     btn.disabled = true;
+    if (!LOCAL) {
+      try {
+        const token = adminCfg ? await unlock(adminCfg, $("pw").value) : null;
+        if (token) {
+          ghToken = token;
+          loginDlg.close();
+          toast("Connecté en tant que chef de guilde");
+          render();
+        } else {
+          $("loginErr").textContent = "Mot de passe incorrect.";
+          $("pw").select();
+        }
+      } catch {
+        $("loginErr").textContent = "Mot de passe incorrect.";
+      } finally {
+        btn.disabled = false;
+      }
+      return;
+    }
     try {
       const r = await post("/api/login", { password: $("pw").value });
       if (r.ok) {
@@ -591,6 +664,13 @@
   });
 
   $("btnLogout").addEventListener("click", async () => {
+    if (!LOCAL) {
+      ghToken = null;
+      pending = null;
+      toast("Déconnecté");
+      render();
+      return;
+    }
     await post("/api/logout");
     toast("Déconnecté");
     load();
@@ -601,10 +681,15 @@
     btn.disabled = true;
     btn.textContent = "Synchronisation…";
     try {
-      const r = await post("/api/refresh");
-      if (r.status === 403) toast("Session admin expirée, reconnecte-toi.");
-      else toast(r.ok ? "Historique relu" : "La synchro a échoué, voir le détail ci-dessus");
-    } catch { toast("Serveur injoignable"); }
+      if (!LOCAL) {
+        const err = await dispatch("sync");
+        toast(err || "Synchro lancée sur GitHub : résultat d'ici quelques minutes");
+      } else {
+        const r = await post("/api/refresh");
+        if (r.status === 403) toast("Session admin expirée, reconnecte-toi.");
+        else toast(r.ok ? "Historique relu" : "La synchro a échoué, voir le détail ci-dessus");
+      }
+    } catch { toast(LOCAL ? "Serveur injoignable" : "GitHub injoignable"); }
     btn.disabled = false;
     btn.textContent = "Synchroniser maintenant";
     load();
@@ -616,7 +701,7 @@
     const total = data ? data.totalAdded : 0;
     const players = data ? (data.contributors || []).length : 0;
     $("resetText").textContent = players
-      ? `Les ${plural(players, "participant repart", "participants repartent")} à 0 et restent dans la liste. Le classement actuel (${plural(total, "temple déposé", "temples déposés")}) est archivé dans data/state.json.`
+      ? `Les ${plural(players, "participant repart", "participants repartent")} à 0 et restent dans la liste. Le classement actuel (${plural(total, "temple déposé", "temples déposés")}) est archivé.`
       : "Les compteurs repartent à 0 à partir de maintenant.";
     resetDlg.showModal();
   });
@@ -626,10 +711,15 @@
     btn.disabled = true;
     btn.textContent = "Réinitialisation…";
     try {
-      const r = await post("/api/reset");
-      if (r.ok) toast("Nouvelle session : tout le monde repart de 0");
-      else toast(r.status === 403 ? "Session admin expirée, reconnecte-toi." : "Le reset a échoué");
-    } catch { toast("Serveur injoignable"); }
+      if (!LOCAL) {
+        const err = await dispatch("reset");
+        toast(err || "Reset lancé sur GitHub : tout le monde repart de 0 d'ici quelques minutes");
+      } else {
+        const r = await post("/api/reset");
+        if (r.ok) toast("Nouvelle session : tout le monde repart de 0");
+        else toast(r.status === 403 ? "Session admin expirée, reconnecte-toi." : "Le reset a échoué");
+      }
+    } catch { toast(LOCAL ? "Serveur injoignable" : "GitHub injoignable"); }
     btn.disabled = false;
     btn.textContent = "Remettre à 0";
     resetDlg.close();
@@ -639,9 +729,22 @@
   document.querySelectorAll("dialog [data-close]").forEach((b) =>
     b.addEventListener("click", () => b.closest("dialog").close()));
 
-  if (!LOCAL) $("btnAdmin").hidden = true;
+  if (!LOCAL) {
+    $("btnAdmin").hidden = true;
+    fetch("admin.json", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j && j.data && j.mac) {
+          adminCfg = j;
+          if (!ghToken) $("btnAdmin").hidden = false;
+        }
+      })
+      .catch(() => {});
+  }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
   setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
+  // Après une demande admin, on relit plus souvent pour voir arriver le résultat.
+  setInterval(() => { if (!document.hidden && pending && Date.now() < fastUntil) load(); }, 20000);
   load();
 })();
 </script>

@@ -33,14 +33,57 @@ gh secret set POESESSID --repo Otiston/poe-temple-tracker
 Colle ton POESESSID quand c'est demandé, puis Entrée. (Ou sur le site : dépôt → **Settings** →
 **Secrets and variables** → **Actions** → **New repository secret**, nom `POESESSID`.)
 
+Si ton POESESSID est déjà dans `config.json`, cette commande le reprend directement :
+
+```powershell
+(Get-Content config.json -Raw | ConvertFrom-Json).poesessid | gh secret set POESESSID --repo Otiston/poe-temple-tracker
+```
+
+Dans les journaux de la tâche, la ligne `POESESSID : 32 caracteres, format ok, empreinte …`
+permet de vérifier que c'est le bon cookie sans jamais l'afficher.
+
 ### Remettre tout le monde à 0 (toi seulement)
 
-1. Va sur <https://github.com/Otiston/poe-temple-tracker/actions/workflows/tracker.yml>
-2. Clique **Run workflow**, choisis **reset**, puis **Run workflow**.
+**Depuis la page** : en bas, **🔒 Admin** → ton mot de passe admin (celui de `config.json`) →
+**Remettre tout le monde à 0**. Le reset est fait par GitHub : la page se met à jour d'ici
+quelques minutes. Il faut l'activer une fois (voir ci-dessous).
 
-Seuls les comptes qui ont les droits sur le dépôt (toi) voient ce bouton. Le classement de la
-session est archivé dans `state.json` (branche `data`), les joueurs restent dans la liste.
-Le choix **sync** force une relecture immédiate de l'historique.
+**Depuis GitHub** (toujours possible) : <https://github.com/Otiston/poe-temple-tracker/actions/workflows/tracker.yml>
+→ **Run workflow** → **reset** → **Run workflow**. Seuls les comptes qui ont les droits sur le
+dépôt voient ce bouton.
+
+Le classement de la session est archivé dans `state.json` (branche `data`), les joueurs restent
+dans la liste. Le choix **sync** force une relecture immédiate de l'historique.
+
+### Activer le bouton Admin de la page (une fois)
+
+Une page GitHub n'a pas de serveur pour vérifier un mot de passe. Le bouton utilise donc un
+jeton GitHub qui ne peut faire qu'une chose : lancer la tâche de ce dépôt. Ce jeton est publié
+**chiffré avec ton mot de passe admin**, et c'est ton navigateur qui le déchiffre quand tu
+tapes le mot de passe.
+
+1. Crée le jeton : github.com → ta photo → **Settings** → **Developer settings** →
+   **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
+   - Nom : `temple-tracker-reset`, expiration : la plus longue proposée.
+   - **Repository access** : *Only select repositories* → `poe-temple-tracker`.
+   - **Permissions** → **Repository permissions** → **Actions** : *Read and write* (rien d'autre).
+   - **Generate token**, puis copie-le (`github_pat_…`).
+2. Dans le dossier du projet, lance :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\set-admin-token.ps1
+```
+
+   Colle le jeton quand c'est demandé. Le script vérifie qu'il marche, le chiffre avec
+   `adminPassword` de `config.json`, publie `docs/admin.json` (chiffré uniquement), puis le
+   bouton apparaît sur la page en 1 à 10 minutes.
+
+- La version chiffrée est publique : garde un mot de passe admin **long** (12 caractères ou
+  plus) et utilisé nulle part ailleurs. Au pire, quelqu'un qui le devinerait pourrait lancer
+  des resets ; il ne pourrait rien faire d'autre sur ton compte.
+- Changer de mot de passe : modifie `adminPassword` dans `config.json` et relance le script.
+- Jeton expiré (message sur la page) : crée-en un nouveau et relance le script.
+- Désactiver : supprime `docs/admin.json` du dépôt et supprime le jeton sur GitHub.
 
 ### À savoir
 
@@ -84,4 +127,6 @@ Pour ne pas se mélanger avec la version GitHub, laisse `"githubRepo": ""` dans 
 - `.github/workflows/tracker.yml` : la tâche GitHub Actions (toutes les 5 min, sync/reset).
 - `docs/index.html` : la page (servie par GitHub Pages, et en local par `start.bat`).
 - `config.actions.json` : réglages de la version GitHub (aucun secret).
+- `tools/set-admin-token.ps1` : active le bouton Admin de la page GitHub (jeton chiffré).
+- `docs/admin.json` : ce jeton, chiffré avec le mot de passe admin.
 - Branche `data` : `data.json` (ce qu'affiche la page) et `state.json` (historique, joueurs, archives).
