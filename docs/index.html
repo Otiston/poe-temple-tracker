@@ -433,6 +433,7 @@
       } else if (!data) {
         s.className = "pill warn";
         s.textContent = e.message === "404" ? "Pas encore de scores publiés" : "Scores indisponibles pour le moment";
+        $("since").textContent = "Le classement apparaîtra dès que le chef de guilde lancera le suivi.";
       }
     }
   }
@@ -638,6 +639,7 @@
   document.querySelectorAll("dialog [data-close]").forEach((b) =>
     b.addEventListener("click", () => b.closest("dialog").close()));
 
+  if (!LOCAL) $("btnAdmin").hidden = true;
   document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
   setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
   load();
