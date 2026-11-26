@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temples d'Atzoatl · Contributions de la guilde</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%23d8b46a'%3E%3Crect x='12' y='5' width='8' height='5'/%3E%3Crect x='8' y='11' width='16' height='5'/%3E%3Crect x='4' y='17' width='24' height='5'/%3E%3Crect x='1' y='23' width='30' height='5'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0d0b09;
+    --panel: #15110d;
+    --panel-2: #1b1611;
+    --line: #2a221a;
+    --line-2: #3a3024;
+    --gold: #d8b46a;
+    --gold-2: #f0d595;
+    --gold-dim: #8d7343;
+    --text: #ece2d0;
+    --muted: #a39480;
+    --faint: #6f6353;
+    --good: #79c296;
+    --bad: #de7a64;
+    --warn: #e0aa55;
+    --silver: #c5cad1;
+    --bronze: #c78f5e;
+    --serif: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { color-scheme: dark; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 420px at 50% -120px, rgba(216, 180, 106, 0.13), transparent 70%),
+      var(--bg);
+    color: var(--text);
+    font: 15px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 20px 56px; }
+
+  /* ---------- en-tête */
+  header { display: flex; gap: 18px; align-items: center; margin-bottom: 28px; }
+  .glyph { flex: none; width: 56px; height: 56px; }
+  .eyebrow {
+    margin: 0 0 2px;
+    font-size: 11.5px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--gold-dim);
+  }
+  h1 {
+    margin: 0;
+    font: 600 34px/1.1 var(--serif);
+    color: var(--gold);
+    letter-spacing: .01em;
+  }
+  .sub { margin: 6px 0 0; color: var(--muted); }
+  .meta {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+    margin: 0 0 22px; color: var(--muted); font-size: 13.5px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 3px 11px 3px 9px; border-radius: 999px;
+    border: 1px solid var(--line-2); background: var(--panel);
+    font-size: 12.5px; color: var(--muted);
+  }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .pill.ok::before { background: var(--good); box-shadow: 0 0 0 3px rgba(121, 194, 150, .15); }
+  .pill.err { color: #f0b3a5; border-color: rgba(222, 122, 100, .45); }
+  .pill.err::before { background: var(--bad); }
+  .pill.warn { color: #f2cf96; border-color: rgba(224, 170, 85, .45); }
+  .pill.warn::before { background: var(--warn); }
+
+  /* ---------- cartes */
+  .card {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .card + .card, .stats + .card, .admin + .stats { margin-top: 16px; }
+  .stats > .card + .card { margin-top: 0; }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding: 16px 20px 12px; border-bottom: 1px solid var(--line);
+  }
+  h2 { margin: 0; font: 600 18px/1.2 var(--serif); color: var(--gold); letter-spacing: .02em; }
+  .card-head small { color: var(--faint); font-size: 12.5px; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .stat { padding: 16px 18px 14px; }
+  .stat .label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .stat .value {
+    margin-top: 4px;
+    font: 600 32px/1.1 var(--serif); color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .value.gold { color: var(--gold-2); }
+  .stat .value.small { font-size: 22px; line-height: 1.45; }
+
+  /* ---------- classement */
+  .board { list-style: none; margin: 0; padding: 6px 0; }
+  .row {
+    display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 4px 14px;
+    padding: 11px 20px;
+  }
+  .row + .row { border-top: 1px solid rgba(42, 34, 26, .7); }
+  .row.first { background: linear-gradient(90deg, rgba(216, 180, 106, .09), transparent 70%); }
+  .rank {
+    width: 30px; height: 30px; display: grid; place-items: center;
+    border-radius: 50%; font: 600 14px/1 var(--serif); color: var(--muted);
+    border: 1px solid var(--line-2); font-variant-numeric: tabular-nums;
+  }
+  .r1 .rank { color: #1a1408; background: var(--gold); border-color: var(--gold-2); }
+  .r2 .rank { color: #15171a; background: var(--silver); border-color: #e2e6ea; }
+  .r3 .rank { color: #1a1008; background: var(--bronze); border-color: #e0ad80; }
+  .who { min-width: 0; }
+  .name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .disc { color: var(--faint); font-weight: 400; }
+  .bar { margin-top: 7px; height: 6px; border-radius: 3px; background: #241d16; overflow: hidden; }
+  .bar span {
+    display: block; height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    transition: width .5s ease;
+  }
+  .row.zero .bar span { background: var(--line-2); }
+  .row.zero .name { color: var(--muted); }
+  .tag-runner {
+    display: inline-block; margin-left: 8px; padding: 1px 7px; vertical-align: 1px;
+    border: 1px solid rgba(87, 179, 161, .5); border-radius: 4px;
+    font: 600 10.5px/1.5 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #8fd3c4;
+  }
+  .count { text-align: right; min-width: 64px; }
+  .count b { display: block; font: 600 24px/1 var(--serif); color: var(--gold-2); font-variant-numeric: tabular-nums; }
+  .row.zero .count b { color: var(--faint); }
+  .row.neg .count b { color: var(--bad); }
+  .count span { display: block; margin-top: 3px; font-size: 12px; color: var(--faint); white-space: nowrap; }
+  .count span.out { color: #c9907f; }
+
+  /* ---------- activité */
+  .feed { list-style: none; margin: 0; padding: 6px 0; }
+  .feed li {
+    display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 12px; align-items: baseline;
+    padding: 8px 20px; font-size: 14px;
+  }
+  .feed .ico { font-size: 11px; text-align: center; }
+  .feed .add .ico, .feed .add .delta { color: var(--good); }
+  .feed .rem .ico, .feed .rem .delta { color: var(--bad); }
+  .feed .run .ico { color: #8fd3c4; }
+  .feed .txt { min-width: 0; color: var(--muted); }
+  .feed .txt b { color: var(--text); font-weight: 600; }
+  .feed .delta { font-weight: 700; font-variant-numeric: tabular-nums; margin-left: 4px; }
+  .feed .tab { color: var(--faint); }
+  .feed time { color: var(--faint); font-size: 12.5px; white-space: nowrap; }
+
+  .empty { padding: 30px 20px; text-align: center; color: var(--muted); }
+  .empty strong { display: block; margin-bottom: 4px; font: 600 17px var(--serif); color: var(--text); }
+
+  /* ---------- admin */
+  .admin {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+    padding: 12px 16px 12px 20px;
+    border-color: rgba(216, 180, 106, .35);
+  }
+  .admin .tag { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-right: auto; }
+  .admin .detail { flex-basis: 100%; font-size: 13px; color: #f0b3a5; }
+  .admin .detail:empty { display: none; }
+  .admin .pub { color: var(--muted); }
+  .admin .pub a { color: var(--gold); }
+  .admin .pub .pub-err { color: #f0b3a5; }
+
+  button {
+    font: 600 13.5px/1 var(--sans); color: var(--text);
+    padding: 9px 14px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--line-2); background: #221b14;
+  }
+  button:hover { border-color: var(--gold-dim); background: #2a2118; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  button:disabled { opacity: .55; cursor: progress; }
+  button.danger { border-color: rgba(222, 122, 100, .55); background: #3a1c15; color: #ffd8cf; }
+  button.danger:hover { background: #4a231a; border-color: var(--bad); }
+  button.primary { border-color: var(--gold); background: var(--gold); color: #1a1408; }
+  button.primary:hover { background: var(--gold-2); }
+  button.ghost { background: transparent; border-color: transparent; color: var(--faint); padding: 6px 8px; font-weight: 500; }
+  button.ghost:hover { color: var(--muted); background: transparent; border-color: var(--line-2); }
+
+  footer {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px;
+    margin-top: 22px; color: var(--faint); font-size: 12.5px;
+  }
+
+  /* ---------- dialogues */
+  dialog {
+    width: min(420px, calc(100vw - 32px)); padding: 0;
+    color: var(--text); background: var(--panel-2);
+    border: 1px solid var(--line-2); border-radius: 12px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+  }
+  dialog::backdrop { background: rgba(5, 4, 3, .7); }
+  dialog form { padding: 22px 22px 18px; margin: 0; }
+  dialog h3 { margin: 0 0 8px; font: 600 20px/1.2 var(--serif); color: var(--gold); }
+  dialog p { margin: 0 0 14px; color: var(--muted); }
+  dialog label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--muted); }
+  dialog input {
+    width: 100%; padding: 10px 12px; border-radius: 7px;
+    border: 1px solid var(--line-2); background: var(--bg); color: var(--text); font: 15px var(--sans);
+  }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .form-err { min-height: 18px; margin: 8px 0 0; font-size: 13px; color: var(--bad); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
+    padding: 10px 16px; border-radius: 8px; max-width: calc(100vw - 32px);
+    background: #2a2118; border: 1px solid var(--gold-dim); color: var(--text);
+    font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 28px 14px 44px; }
+    header { gap: 14px; }
+    .glyph { width: 44px; height: 44px; }
+    h1 { font-size: 27px; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .stat:last-child { grid-column: 1 / -1; }
+    .stat .value { font-size: 27px; }
+    .row { padding: 10px 14px; gap: 4px 10px; }
+    .feed li { padding: 8px 14px; }
+    .card-head { padding: 14px 14px 10px; flex-direction: column; align-items: flex-start; gap: 4px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="glyph" viewBox="0 0 56 56" aria-hidden="true">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f0d595"/><stop offset="1" stop-color="#8d7343"/>
+        </linearGradient>
+      </defs>
+      <g fill="url(#g)">
+        <rect x="22" y="8" width="12" height="7" rx="1"/>
+        <rect x="16" y="17" width="24" height="7" rx="1"/>
+        <rect x="10" y="26" width="36" height="7" rx="1"/>
+        <rect x="4" y="35" width="48" height="8" rx="1"/>
+      </g>
+      <rect x="25" y="35" width="6" height="8" fill="#0d0b09"/>
+      <rect x="2" y="45" width="52" height="3" rx="1" fill="#3a3024"/>
+    </svg>
+    <div>
+      <p class="eyebrow">Coffre de guilde · Incursion</p>
+      <h1>Temples d'Atzoatl</h1>
+      <p class="sub">Qui a déposé combien de <em>Chronicle of Atzoatl</em> dans le coffre cette session.</p>
+    </div>
+  </header>
+
+  <div class="meta">
+    <span id="since">Chargement…</span>
+    <span id="status" class="pill">Connexion au serveur…</span>
+  </div>
+
+  <section id="adminBar" class="card admin" hidden>
+    <span class="tag">Mode chef de guilde</span>
+    <button id="btnRefresh" type="button">Synchroniser maintenant</button>
+    <button id="btnReset" type="button" class="danger">Remettre tout le monde à 0</button>
+    <button id="btnLogout" type="button" class="ghost">Déconnexion</button>
+    <div id="adminDetail" class="detail"></div>
+    <div id="adminPub" class="detail pub"></div>
+  </section>
+
+  <section class="stats" aria-label="Résumé de la session">
+    <div class="card stat">
+      <div class="label">Temples déposés</div>
+      <div id="statTotal" class="value gold">–</div>
+    </div>
+    <div class="card stat">
+      <div class="label">Contributeurs</div>
+      <div id="statPlayers" class="value">–</div>
+    </div>
+    <div class="card stat">
+      <div class="label">Dernier dépôt</div>
+      <div id="statLast" class="value small">–</div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="boardTitle">
+    <div class="card-head">
+      <h2 id="boardTitle">Classement</h2>
+      <small id="boardRule">+1 par temple déposé · −1 par temple retiré</small>
+    </div>
+    <ol id="board" class="board"></ol>
+  </section>
+
+  <section class="card" aria-labelledby="feedTitle">
+    <div class="card-head">
+      <h2 id="feedTitle">Derniers mouvements</h2>
+      <small id="feedHint"></small>
+    </div>
+    <ul id="feed" class="feed"></ul>
+  </section>
+
+  <footer>
+    <span id="foot">Source : historique du coffre de guilde sur pathofexile.com</span>
+    <button id="btnAdmin" type="button" class="ghost">🔒 Admin</button>
+  </footer>
+</div>
+
+<dialog id="loginDlg">
+  <form id="loginForm" method="dialog">
+    <h3>Accès chef de guilde</h3>
+    <p>Réservé au chef de guilde pour remettre les compteurs à zéro.</p>
+    <label for="pw">Mot de passe admin</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <p id="loginErr" class="form-err" role="alert"></p>
+    <div class="actions">
+      <button type="button" data-close>Annuler</button>
+      <button type="submit" class="primary">Se connecter</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="resetDlg">
+  <form id="resetForm" method="dialog">
+    <h3>Nouvelle session ?</h3>
+    <p id="resetText">Tous les compteurs repartent à 0.</p>
+    <div class="actions">
+      <button type="button" data-close>Annuler</button>
+      <button type="submit" class="danger" id="btnResetConfirm">Remettre à 0</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  // Deux modes : sur le PC du chef de guilde (localhost, avec admin) ou sur GitHub Pages
+  // (https://<owner>.github.io/<repo>/, lecture seule des scores publiés par son PC).
+  const LOCAL = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
+  const REFRESH_MS = LOCAL ? 30000 : 60000;
+  const STALE_S = 20 * 60;
+  let DATA_URL = "/api/stats";
+  if (!LOCAL) {
+    const owner = location.hostname.split(".")[0];
+    const repo = location.pathname.split("/").filter(Boolean)[0] || "";
+    const asked = new URLSearchParams(location.search).get("branch") || "";
+    const branch = /^[\w.-]+$/.test(asked) ? asked : "data";
+    DATA_URL = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/data.json`;
+  }
+  const ERRORS = {
+    no_sessid: "POESESSID manquant dans config.json.",
+    unauthorized: "POESESSID refusé ou expiré : reconnecte-toi sur pathofexile.com et recopie le cookie dans config.json.",
+    forbidden: "pathofexile.com refuse l'accès à l'historique : vérifie que ce POESESSID est bien celui du compte chef de guilde.",
+    cloudflare: "Requête bloquée par Cloudflare (protection anti-robot de pathofexile.com).",
+    rate_limited: "Trop de requêtes : GGG impose une pause, nouvelle tentative automatique.",
+    not_found: "Guilde introuvable : vérifie guildId dans config.json.",
+    network: "Impossible de joindre pathofexile.com.",
+    config: "config.json est illisible (virgule ou guillemet manquant ?).",
+    bad_json: "Réponse inattendue de pathofexile.com.",
+    api_error: "pathofexile.com a renvoyé une erreur.",
+    http: "Erreur inattendue de pathofexile.com."
+  };
+
+  let data = null;
+  let skewMs = 0;
+  const rtf = new Intl.RelativeTimeFormat("fr", { numeric: "auto" });
+  const dtf = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+
+  const serverNow = () => Date.now() + skewMs;
+  function ago(ts) {
+    if (!ts) return "jamais";
+    const diff = Math.round((ts * 1000 - serverNow()) / 1000);
+    const a = Math.abs(diff);
+    if (a < 45) return "à l'instant";
+    if (a < 3600) return rtf.format(Math.round(diff / 60), "minute");
+    if (a < 86400) return rtf.format(Math.round(diff / 3600), "hour");
+    return rtf.format(Math.round(diff / 86400), "day");
+  }
+  const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+
+  function el(tag, props, ...children) {
+    const node = document.createElement(tag);
+    if (props) for (const [k, v] of Object.entries(props)) {
+      if (k === "class") node.className = v; else if (k === "style") node.setAttribute("style", v); else node[k] = v;
+    }
+    for (const c of children) if (c != null) node.append(c);
+    return node;
+  }
+  function nameNode(account) {
+    const i = account.lastIndexOf("#");
+    if (i <= 0) return document.createTextNode(account);
+    const frag = document.createDocumentFragment();
+    frag.append(account.slice(0, i), el("span", { class: "disc" }, account.slice(i)));
+    return frag;
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+  }
+
+  async function post(path, body) {
+    const r = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {})
+    });
+    let j = {};
+    try { j = await r.json(); } catch {}
+    return Object.assign({ status: r.status, httpOk: r.ok }, j);
+  }
+
+  async function load() {
+    try {
+      const r = await fetch(DATA_URL, { cache: "no-store" });
+      if (!r.ok) throw new Error(String(r.status));
+      data = await r.json();
+      skewMs = LOCAL && data.now ? data.now * 1000 - Date.now() : 0;
+      render();
+    } catch (e) {
+      const s = $("status");
+      if (LOCAL) {
+        s.className = "pill err";
+        s.textContent = "Serveur injoignable";
+      } else if (!data) {
+        s.className = "pill warn";
+        s.textContent = e.message === "404" ? "Pas encore de scores publiés" : "Scores indisponibles pour le moment";
+      }
+    }
+  }
+
+  function render() {
+    const d = data;
+    if (!d) return;
+    const contributors = d.contributors || [];
+    const depositors = contributors.filter((c) => c.added > 0);
+    const recent = d.recent || [];
+    const runners = d.runners || [];
+
+    // Session + statut
+    $("since").textContent = d.sessionStart
+      ? `Session commencée le ${dtf.format(new Date(d.sessionStart * 1000))}`
+      : "Depuis le début de l'historique disponible";
+
+    const s = $("status");
+    let detail = "";
+    if (!d.configured) {
+      s.className = "pill warn";
+      s.textContent = "Synchronisation pas encore configurée";
+      detail = ERRORS.no_sessid;
+    } else if (d.lastError) {
+      s.className = "pill err";
+      s.textContent = d.lastSuccess ? `Synchro en échec · dernière réussie ${ago(d.lastSuccess)}` : "Synchro en échec";
+      detail = (ERRORS[d.lastError.code] || ERRORS.http) + (d.lastError.detail ? ` (${d.lastError.detail})` : "");
+    } else if (!LOCAL && d.lastSuccess && serverNow() / 1000 - d.lastSuccess > STALE_S) {
+      s.className = "pill warn";
+      s.textContent = `Pas de mise à jour depuis ${ago(d.lastSuccess).replace(/^il y a /, "")}`;
+    } else if (d.lastSuccess) {
+      s.className = "pill ok";
+      s.textContent = `Synchronisé ${ago(d.lastSuccess)}`;
+    } else {
+      s.className = "pill";
+      s.textContent = "Première synchronisation…";
+    }
+
+    // Admin
+    $("adminBar").hidden = !d.isAdmin;
+    $("btnAdmin").hidden = d.isAdmin || !LOCAL;
+    $("adminDetail").textContent = d.isAdmin ? detail : "";
+    const pub = $("adminPub");
+    pub.replaceChildren();
+    if (d.isAdmin && d.publish) {
+      const p = d.publish;
+      pub.append("Page publique : ",
+        el("a", { href: p.url, target: "_blank", rel: "noopener" }, p.url.replace(/^https:\/\//, "")),
+        " · ",
+        p.error ? el("span", { class: "pub-err" }, `publication en échec (${p.error})`)
+          : p.lastPushAt ? `publiée ${ago(p.lastPushAt)}` : "en attente de publication");
+    }
+
+    // Stats
+    $("statTotal").textContent = d.totalAdded;
+    $("statPlayers").textContent = depositors.length;
+    const lastAdd = recent.find((e) => e.action === "added");
+    $("statLast").textContent = lastAdd ? ago(lastAdd.time) : "–";
+
+    // Classement : score = déposés − retirés (les retraits des runners ne comptent pas).
+    $("boardRule").textContent = "+1 par temple déposé · −1 par temple retiré"
+      + (runners.length ? ` · retraits de ${runners.join(", ")} non comptés (run)` : "");
+    const board = $("board");
+    board.replaceChildren();
+    if (!contributors.length) {
+      board.append(el("li", { class: "empty" },
+        el("strong", null, "Aucun temple pour l'instant"),
+        "Le premier qui dépose une Chronicle of Atzoatl dans le coffre prend la tête."));
+    } else {
+      const max = Math.max(1, ...contributors.map((c) => c.score));
+      contributors.forEach((c, i) => {
+        const ranked = c.score > 0;
+        const rank = i + 1;
+        const cls = ["row"];
+        if (!ranked) cls.push("zero");
+        if (c.score < 0) cls.push("neg");
+        if (ranked && rank <= 3) cls.push("r" + rank);
+        if (ranked && i === 0) cls.push("first");
+        const pct = ranked ? Math.round((c.score / max) * 100) : 0;
+
+        const parts = [];
+        if (c.removed > 0 || c.runs > 0) parts.push(`${c.added} déposé${c.added > 1 ? "s" : ""}`);
+        if (c.removed > 0) parts.push(`${c.removed} retiré${c.removed > 1 ? "s" : ""}`);
+        if (c.runs > 0) parts.push(`${c.runs} run${c.runs > 1 ? "s" : ""}`);
+        const detail = parts.length
+          ? el("span", { class: c.removed > 0 ? "out" : "" }, parts.join(" · "))
+          : el("span", null, Math.abs(c.score) > 1 ? "temples" : "temple");
+
+        board.append(el("li", { class: cls.join(" ") },
+          el("span", { class: "rank", ariaLabel: ranked ? `rang ${rank}` : "" }, ranked ? String(rank) : "–"),
+          el("div", { class: "who" },
+            el("div", { class: "name", title: c.account }, nameNode(c.account),
+              c.runner ? el("span", { class: "tag-runner", title: "Lance les temples : ses retraits ne comptent pas" }, "runner") : null),
+            el("div", { class: "bar" }, el("span", { style: `width:${pct}%` }))),
+          el("div", { class: "count" }, el("b", null, c.score > 0 ? String(c.score) : String(c.score).replace("-", "−")), detail)));
+      });
+    }
+
+    // Activité
+    const feed = $("feed");
+    feed.replaceChildren();
+    $("feedHint").textContent = recent.length ? `${recent.length} derniers` : "";
+    if (!recent.length) {
+      feed.append(el("li", { class: "empty", style: "display:block" }, "Aucun mouvement de temple depuis le début de la session."));
+    } else {
+      for (const e of recent) {
+        const kind = e.delta > 0 ? "add" : e.delta < 0 ? "rem" : "run";
+        const when = new Date(e.time * 1000);
+        const text = { add: " a déposé un temple", rem: " a retiré un temple", run: " a pris un temple pour le lancer" }[kind];
+        feed.append(el("li", { class: kind },
+          el("span", { class: "ico", ariaHidden: "true" }, { add: "▲", rem: "▼", run: "◆" }[kind]),
+          el("span", { class: "txt" },
+            el("b", null, nameNode(e.account)),
+            text,
+            kind !== "run" ? el("span", { class: "delta" }, kind === "add" ? "+1" : "−1") : null,
+            e.stash ? el("span", { class: "tab" }, ` · ${e.stash}`) : null),
+          el("time", { dateTime: when.toISOString(), title: dtf.format(when) }, ago(e.time))));
+      }
+    }
+
+    const every = Number(d.pollMinutes) || 2;
+    $("foot").textContent = LOCAL
+      ? `Source : historique du coffre de guilde sur pathofexile.com · relu toutes les ${plural(every, "minute", "minutes")}`
+      : "Source : historique du coffre de guilde sur pathofexile.com · mise à jour automatique (jusqu'à 5 min de délai)";
+  }
+
+  // ---------- connexion admin
+  const loginDlg = $("loginDlg");
+  $("btnAdmin").addEventListener("click", () => {
+    $("loginErr").textContent = "";
+    $("pw").value = "";
+    loginDlg.showModal();
+  });
+  $("loginForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const btn = ev.submitter || $("loginForm").querySelector("[type=submit]");
+    btn.disabled = true;
+    try {
+      const r = await post("/api/login", { password: $("pw").value });
+      if (r.ok) {
+        loginDlg.close();
+        toast("Connecté en tant que chef de guilde");
+        await load();
+      } else if (r.error === "locked") {
+        $("loginErr").textContent = `Trop d'essais. Réessaie dans ${Math.ceil((r.retryIn || 600) / 60)} min.`;
+      } else {
+        $("loginErr").textContent = "Mot de passe incorrect.";
+        $("pw").select();
+      }
+    } catch {
+      $("loginErr").textContent = "Serveur injoignable.";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $("btnLogout").addEventListener("click", async () => {
+    await post("/api/logout");
+    toast("Déconnecté");
+    load();
+  });
+
+  $("btnRefresh").addEventListener("click", async (ev) => {
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    btn.textContent = "Synchronisation…";
+    try {
+      const r = await post("/api/refresh");
+      if (r.status === 403) toast("Session admin expirée, reconnecte-toi.");
+      else toast(r.ok ? "Historique relu" : "La synchro a échoué, voir le détail ci-dessus");
+    } catch { toast("Serveur injoignable"); }
+    btn.disabled = false;
+    btn.textContent = "Synchroniser maintenant";
+    load();
+  });
+
+  // ---------- reset
+  const resetDlg = $("resetDlg");
+  $("btnReset").addEventListener("click", () => {
+    const total = data ? data.totalAdded : 0;
+    const players = data ? (data.contributors || []).length : 0;
+    $("resetText").textContent = players
+      ? `Les ${plural(players, "participant repart", "participants repartent")} à 0 et restent dans la liste. Le classement actuel (${plural(total, "temple déposé", "temples déposés")}) est archivé dans data/state.json.`
+      : "Les compteurs repartent à 0 à partir de maintenant.";
+    resetDlg.showModal();
+  });
+  $("resetForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const btn = $("btnResetConfirm");
+    btn.disabled = true;
+    btn.textContent = "Réinitialisation…";
+    try {
+      const r = await post("/api/reset");
+      if (r.ok) toast("Nouvelle session : tout le monde repart de 0");
+      else toast(r.status === 403 ? "Session admin expirée, reconnecte-toi." : "Le reset a échoué");
+    } catch { toast("Serveur injoignable"); }
+    btn.disabled = false;
+    btn.textContent = "Remettre à 0";
+    resetDlg.close();
+    load();
+  });
+
+  document.querySelectorAll("dialog [data-close]").forEach((b) =>
+    b.addEventListener("click", () => b.closest("dialog").close()));
+
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+  setInterval(() => { if (!document.hidden) load(); }, REFRESH_MS);
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Secrets (POESESSID, mot de passe admin) : ne jamais publier
+config.json
+# Etat local (scores, archives, reponses brutes de pathofexile.com)
+data/
+.claude/

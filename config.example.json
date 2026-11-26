@@ -1,0 +1,11 @@
+{
+  "guildId": 233281,
+  "poesessid": "",
+  "adminPassword": "change-moi",
+  "templeRunners": ["Otiston"],
+  "firstSessionStart": "2026-11-26",
+  "githubRepo": "Otiston/poe-temple-tracker",
+  "port": 8080,
+  "pollMinutes": 2,
+  "itemName": "Chronicle of Atzoatl"
+}
