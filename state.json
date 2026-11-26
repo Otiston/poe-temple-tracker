@@ -1,0 +1,118 @@
+{
+    "version":  1,
+    "sessionStart":  1795708140,
+    "resets":  0,
+    "cursorTime":  1795731414,
+    "lastPoll":  1795732885,
+    "lastSuccess":  1795732886,
+    "lastError":  null,
+    "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
+    "members":  [
+                    "Narberal_gamma#0313",
+                    "baadboy#6876",
+                    "apocalypses#2836",
+                    "Otiston#3475",
+                    "Shaba87#5191"
+                ],
+    "entries":  [
+                    {
+                        "id":  "4279418882",
+                        "time":  1795731414,
+                        "account":  "Shaba87#5191",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4279418857",
+                        "time":  1795731413,
+                        "account":  "Shaba87#5191",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4279418780",
+                        "time":  1795731411,
+                        "account":  "Shaba87#5191",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4279418730",
+                        "time":  1795731409,
+                        "account":  "Shaba87#5191",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278795966",
+                        "time":  1795717141,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278795476",
+                        "time":  1795717130,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278795466",
+                        "time":  1795717130,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278478760",
+                        "time":  1795710300,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278422911",
+                        "time":  1795708988,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278387049",
+                        "time":  1795708178,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278387018",
+                        "time":  1795708177,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4278386968",
+                        "time":  1795708176,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    }
+                ],
+    "archives":  [
+
+                 ]
+}
