@@ -1,0 +1,12 @@
+{
+    "v":  1,
+    "repo":  "Otiston/poe-temple-tracker",
+    "workflow":  "tracker.yml",
+    "ref":  "main",
+    "kdf":  "PBKDF2-SHA256",
+    "iter":  600000,
+    "salt":  "4dBOxrFexe2M7gLOAdbNmQ==",
+    "iv":  "CRLeGwMOYepjrFc1HSmB8A==",
+    "data":  "dlxUw3XX5Z+htjUSG4ZTrYjevIKFxf1Z6RW5CA4m2qZYXGgSv5Q/2qhmluYAJ3lEQv5s/IBIao3ciizPVpGwZW4NOlGZUyHcRepTh3NdCJhZGz9cV01zjjD/OYGDFfLC",
+    "mac":  "NQyewaz0bhF1Crh/02/Z9YWruBvMCpcDVd0upJjdtAc="
+}
