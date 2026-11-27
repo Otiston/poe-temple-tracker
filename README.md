@@ -85,10 +85,32 @@ powershell -ExecutionPolicy Bypass -File tools\set-admin-token.ps1
 - Jeton expiré (message sur la page) : crée-en un nouveau et relance le script.
 - Désactiver : supprime `docs/admin.json` du dépôt et supprime le jeton sur GitHub.
 
+### Relance automatique fiable (cron-job.org)
+
+La planification interne de GitHub est « au mieux » : elle peut prendre beaucoup de retard, voire
+ne jamais démarrer (c'est arrivé ici). Un service gratuit externe demande donc à GitHub de lancer
+la synchro toutes les 5 minutes :
+
+1. Crée un jeton GitHub dédié, comme pour le bouton Admin (Fine-grained, nom `temple-tracker-cron`,
+   uniquement le dépôt `poe-temple-tracker`, permission **Actions : Read and write**).
+2. Crée un compte gratuit sur <https://cron-job.org>, puis **Create cronjob** :
+   - **Title** : `Temple tracker`
+   - **URL** : `https://api.github.com/repos/Otiston/poe-temple-tracker/actions/workflows/tracker.yml/dispatches`
+   - **Execution schedule** : *Every 5 minutes*
+   - Onglet **Advanced** :
+     - **Request method** : `POST`
+     - **Headers** (trois lignes) : `Authorization` = `Bearer github_pat_…` (ton jeton),
+       `Accept` = `application/vnd.github+json`, `Content-Type` = `application/json`
+     - **Request body** : `{"ref":"main","inputs":{"action":"sync"}}`
+   - **Test run** : la réponse attendue est **204** (= tâche lancée). Puis **Create**.
+
+Ce jeton ne permet que de lancer la tâche de ce dépôt. Si un jour il expire, cron-job.org
+affichera des échecs (401) : crée un nouveau jeton et remplace-le dans l'en-tête.
+
 ### À savoir
 
-- GitHub lance la tâche « toutes les 5 minutes » mais avec du retard parfois (10-20 min aux
-  heures chargées), plus ~5 min de cache : un dépôt apparaît en général en 5 à 15 minutes.
+- Avec cron-job.org, une synchro part toutes les 5 minutes ; avec le cache de GitHub (~5 min),
+  un dépôt apparaît en général sur la page en 5 à 12 minutes.
 - Si le POESESSID expire (déconnexion du site), la page affiche « Synchro en échec » :
   récupère le nouveau cookie et relance la commande `gh secret set` ci-dessus.
 - GitHub met en pause les tâches planifiées d'un dépôt public sans activité pendant 60 jours ;
