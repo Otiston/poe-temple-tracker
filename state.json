@@ -2,9 +2,9 @@
     "version":  1,
     "sessionStart":  1795708140,
     "resets":  0,
-    "cursorTime":  1795775748,
-    "lastPoll":  1795779065,
-    "lastSuccess":  1795779065,
+    "cursorTime":  1795779262,
+    "lastPoll":  1795779337,
+    "lastSuccess":  1795779338,
     "lastError":  null,
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
@@ -419,6 +419,14 @@
                     {
                         "id":  "4280768824",
                         "time":  1795775748,
+                        "account":  "The_Arkhatraz#1952",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4280883239",
+                        "time":  1795779262,
                         "account":  "The_Arkhatraz#1952",
                         "action":  "added",
                         "league":  "Covens",
