@@ -2,9 +2,9 @@
     "version":  1,
     "sessionStart":  1795708140,
     "resets":  0,
-    "cursorTime":  1795794573,
-    "lastPoll":  1795794940,
-    "lastSuccess":  1795794940,
+    "cursorTime":  1795795109,
+    "lastPoll":  1795795284,
+    "lastSuccess":  1795795284,
     "lastError":  null,
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
@@ -931,6 +931,14 @@
                     {
                         "id":  "4281499028",
                         "time":  1795794090,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4281543635",
+                        "time":  1795795016,
                         "account":  "Narberal_gamma#0313",
                         "action":  "added",
                         "league":  "Covens",
