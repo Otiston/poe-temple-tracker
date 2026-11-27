@@ -3,9 +3,13 @@
     "sessionStart":  1795708140,
     "resets":  0,
     "cursorTime":  1795775748,
-    "lastPoll":  1795776654,
+    "lastPoll":  1795776942,
     "lastSuccess":  1795776655,
-    "lastError":  null,
+    "lastError":  {
+                      "code":  "forbidden",
+                      "detail":  "HTTP 403",
+                      "time":  1795776943
+                  },
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
                     "Narberal_gamma#0313",
