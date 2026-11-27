@@ -2,9 +2,9 @@
     "version":  1,
     "sessionStart":  1795708140,
     "resets":  0,
-    "cursorTime":  1795745781,
-    "lastPoll":  1795747246,
-    "lastSuccess":  1795747246,
+    "cursorTime":  1795747414,
+    "lastPoll":  1795747550,
+    "lastSuccess":  1795747550,
     "lastError":  null,
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
@@ -378,6 +378,14 @@
                     {
                         "id":  "4279808181",
                         "time":  1795745754,
+                        "account":  "apocalypses#2836",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4279855577",
+                        "time":  1795747414,
                         "account":  "apocalypses#2836",
                         "action":  "added",
                         "league":  "Covens",
