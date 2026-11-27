@@ -2,9 +2,9 @@
     "version":  1,
     "sessionStart":  1795708140,
     "resets":  0,
-    "cursorTime":  1795822033,
-    "lastPoll":  1795822542,
-    "lastSuccess":  1795822543,
+    "cursorTime":  1795822733,
+    "lastPoll":  1795822854,
+    "lastSuccess":  1795822854,
     "lastError":  null,
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
@@ -1413,6 +1413,110 @@
                         "time":  1795821921,
                         "account":  "Shaba87#5191",
                         "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282715559",
+                        "time":  1795822733,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282715541",
+                        "time":  1795822733,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282712151",
+                        "time":  1795822638,
+                        "account":  "Otiston#3475",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282712143",
+                        "time":  1795822638,
+                        "account":  "Otiston#3475",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710708",
+                        "time":  1795822596,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710691",
+                        "time":  1795822596,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710680",
+                        "time":  1795822596,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710658",
+                        "time":  1795822595,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710650",
+                        "time":  1795822595,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710634",
+                        "time":  1795822595,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710618",
+                        "time":  1795822595,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710596",
+                        "time":  1795822594,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4282710582",
+                        "time":  1795822593,
+                        "account":  "Otiston#3475",
+                        "action":  "removed",
                         "league":  "Covens",
                         "stash":  "Atziri"
                     }
