@@ -52,8 +52,11 @@ quelques minutes. Il faut l'activer une fois (voir ci-dessous).
 → **Run workflow** → **reset** → **Run workflow**. Seuls les comptes qui ont les droits sur le
 dépôt voient ce bouton.
 
-Le classement de la session est archivé dans `state.json` (branche `data`), les joueurs restent
-dans la liste. Le choix **sync** force une relecture immédiate de l'historique.
+Le classement de la session est archivé (`state.json`, branche `data`) et reste visible par
+tous en bas de la page, dans **Sessions précédentes** : dates, total de temples, vainqueur, et
+le classement complet en cliquant sur une session. Les joueurs restent dans la liste. Un reset
+sans aucun mouvement depuis le précédent (double clic, par exemple) n'ajoute pas de session vide.
+Le choix **sync** force une relecture immédiate de l'historique.
 
 ### Activer le bouton Admin de la page (une fois)
 

@@ -445,20 +445,33 @@ function Get-Stats($Cfg, [bool]$IsAdmin) {
         totalRuns    = $s.totalRuns
         contributors = $s.contributors
         recent       = $s.recent
+        history      = (Get-History)
     }
 }
 
-# Archive le classement en cours dans state.json puis repart de zero.
+# Sessions archivees par les resets, la plus recente d'abord.
+function Get-History {
+    $list = New-Object System.Collections.ArrayList
+    for ($i = $State.archives.Count - 1; $i -ge 0; $i--) { [void]$list.Add($State.archives[$i]) }
+    return , $list
+}
+
+# Archive le classement en cours dans state.json (affiche dans "Sessions precedentes")
+# puis repart de zero. Une session sans aucun mouvement (ex. double reset) n'est pas archivee.
 function Reset-Session($Cfg) {
     $now = Get-UnixNow
     $s = Get-Summary $Cfg
-    if ($s.contributors.Count -gt 0) {
+    if ($s.totalAdded + $s.totalRemoved + $s.totalRuns -gt 0) {
+        $rows = @($s.contributors | ForEach-Object {
+                [pscustomobject]@{ account = $_.account; score = $_.score; added = $_.added; removed = $_.removed; runs = $_.runs; runner = $_.runner }
+            })
         [void]$State.archives.Add([pscustomobject]@{
                 start        = $State.sessionStart
                 end          = $now
                 totalAdded   = $s.totalAdded
+                totalRemoved = $s.totalRemoved
                 totalRuns    = $s.totalRuns
-                contributors = $s.contributors
+                contributors = $rows
             })
     }
     # Tout ce qui est deja connu vient d'etre archive : la nouvelle session commence apres
@@ -580,6 +593,7 @@ function Get-PublicView($Cfg) {
         totalRuns    = $stats.totalRuns
         contributors = $stats.contributors
         recent       = $stats.recent
+        history      = $stats.history
     }
 }
 

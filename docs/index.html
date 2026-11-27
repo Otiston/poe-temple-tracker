@@ -154,6 +154,32 @@
   .feed .tab { color: var(--faint); }
   .feed time { color: var(--faint); font-size: 12.5px; white-space: nowrap; }
 
+  /* ---------- sessions précédentes */
+  .history { padding: 4px 0; }
+  .past + .past { border-top: 1px solid rgba(42, 34, 26, .7); }
+  .past summary {
+    display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+    padding: 12px 20px; cursor: pointer; list-style: none;
+  }
+  .past summary::-webkit-details-marker { display: none; }
+  .past summary::before {
+    content: ""; width: 7px; height: 7px; margin-left: 2px;
+    border: solid var(--muted); border-width: 0 2px 2px 0;
+    transform: rotate(-45deg); transition: transform .15s;
+  }
+  .past[open] summary::before { transform: rotate(45deg); border-color: var(--gold); }
+  .past summary:hover { background: rgba(216, 180, 106, .04); }
+  .past summary:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .past .when { min-width: 0; }
+  .past .num { font: 600 15.5px/1.2 var(--serif); color: var(--text); }
+  .past .range { margin-top: 2px; font-size: 12.5px; color: var(--faint); }
+  .past .sum { text-align: right; font-size: 13px; color: var(--muted); }
+  .past .sum b { display: block; font: 600 19px/1.1 var(--serif); color: var(--gold-2); font-variant-numeric: tabular-nums; }
+  .past .sum .win { white-space: nowrap; }
+  .past .board { padding: 0 0 8px; border-top: 1px dashed var(--line); margin: 0 20px 0 46px; }
+  .past .board .row { padding: 8px 0; }
+  .past .board .count b { font-size: 19px; }
+
   .empty { padding: 30px 20px; text-align: center; color: var(--muted); }
   .empty strong { display: block; margin-bottom: 4px; font: 600 17px var(--serif); color: var(--text); }
 
@@ -227,6 +253,8 @@
     .stat .value { font-size: 27px; }
     .row { padding: 10px 14px; gap: 4px 10px; }
     .feed li { padding: 8px 14px; }
+    .past summary { padding: 11px 14px; gap: 10px; }
+    .past .board { margin: 0 14px 0 38px; }
     .card-head { padding: 14px 14px 10px; flex-direction: column; align-items: flex-start; gap: 4px; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -300,6 +328,14 @@
       <small id="feedHint"></small>
     </div>
     <ul id="feed" class="feed"></ul>
+  </section>
+
+  <section id="historyCard" class="card" aria-labelledby="historyTitle" hidden>
+    <div class="card-head">
+      <h2 id="historyTitle">Sessions précédentes</h2>
+      <small id="historyHint"></small>
+    </div>
+    <div id="history" class="history"></div>
   </section>
 
   <footer>
@@ -509,6 +545,70 @@
     }
   }
 
+  // Lignes de classement (session en cours ou archivée) : score = déposés − retirés.
+  function boardRows(list) {
+    const max = Math.max(1, ...list.map((c) => c.score));
+    return list.map((c, i) => {
+      const ranked = c.score > 0;
+      const rank = i + 1;
+      const cls = ["row"];
+      if (!ranked) cls.push("zero");
+      if (c.score < 0) cls.push("neg");
+      if (ranked && rank <= 3) cls.push("r" + rank);
+      if (ranked && i === 0) cls.push("first");
+      const pct = ranked ? Math.round((c.score / max) * 100) : 0;
+
+      const parts = [];
+      if (c.removed > 0 || c.runs > 0) parts.push(`${c.added} déposé${c.added > 1 ? "s" : ""}`);
+      if (c.removed > 0) parts.push(`${c.removed} retiré${c.removed > 1 ? "s" : ""}`);
+      if (c.runs > 0) parts.push(`${c.runs} run${c.runs > 1 ? "s" : ""}`);
+      const detail = parts.length
+        ? el("span", { class: c.removed > 0 ? "out" : "" }, parts.join(" · "))
+        : el("span", null, Math.abs(c.score) > 1 ? "temples" : "temple");
+
+      return el("li", { class: cls.join(" ") },
+        el("span", { class: "rank", ariaLabel: ranked ? `rang ${rank}` : "" }, ranked ? String(rank) : "–"),
+        el("div", { class: "who" },
+          el("div", { class: "name", title: c.account }, nameNode(c.account),
+            c.runner ? el("span", { class: "tag-runner", title: "Lance les temples : ses retraits ne comptent pas" }, "runner") : null),
+          el("div", { class: "bar" }, el("span", { style: `width:${pct}%` }))),
+        el("div", { class: "count" }, el("b", null, c.score > 0 ? String(c.score) : String(c.score).replace("-", "−")), detail));
+    });
+  }
+
+  // ---------- sessions précédentes (archivées à chaque reset, la plus récente d'abord)
+  const dfPast = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const tfPast = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  const openPast = new Set(); // sessions dépliées : restent ouvertes quand la page se rafraîchit
+
+  function renderHistory(history) {
+    $("historyCard").hidden = !history.length;
+    $("historyHint").textContent = history.length > 1 ? plural(history.length, "session", "sessions") : "";
+    const box = $("history");
+    box.replaceChildren();
+    history.forEach((h, i) => {
+      const rows = h.contributors || [];
+      const removed = h.totalRemoved ?? rows.reduce((n, c) => n + (c.removed || 0), 0);
+      const net = (h.totalAdded || 0) - removed;
+      const top = rows.find((c) => c.score > 0);
+      const start = new Date(h.start * 1000), end = new Date(h.end * 1000);
+      const sameDay = start.toDateString() === end.toDateString();
+      const key = `${h.start}-${h.end}`;
+
+      const det = el("details", { class: "past", open: openPast.has(key) },
+        el("summary", null,
+          el("div", { class: "when" },
+            el("div", { class: "num" }, `Session ${history.length - i}`),
+            el("div", { class: "range" }, `${dfPast.format(start)} → ${(sameDay ? tfPast : dfPast).format(end)}`)),
+          el("div", { class: "sum" },
+            el("b", null, plural(net, "temple", "temples")),
+            top ? el("span", { class: "win" }, "🏆 ", nameNode(top.account), ` · ${top.score}`) : "aucun dépôt")),
+        el("ol", { class: "board" }, ...boardRows(rows)));
+      det.addEventListener("toggle", () => { if (det.open) openPast.add(key); else openPast.delete(key); });
+      box.append(det);
+    });
+  }
+
   function render() {
     const d = data;
     if (!d) return;
@@ -584,33 +684,7 @@
         el("strong", null, "Aucun temple pour l'instant"),
         "Le premier qui dépose une Chronicle of Atzoatl dans le coffre prend la tête."));
     } else {
-      const max = Math.max(1, ...contributors.map((c) => c.score));
-      contributors.forEach((c, i) => {
-        const ranked = c.score > 0;
-        const rank = i + 1;
-        const cls = ["row"];
-        if (!ranked) cls.push("zero");
-        if (c.score < 0) cls.push("neg");
-        if (ranked && rank <= 3) cls.push("r" + rank);
-        if (ranked && i === 0) cls.push("first");
-        const pct = ranked ? Math.round((c.score / max) * 100) : 0;
-
-        const parts = [];
-        if (c.removed > 0 || c.runs > 0) parts.push(`${c.added} déposé${c.added > 1 ? "s" : ""}`);
-        if (c.removed > 0) parts.push(`${c.removed} retiré${c.removed > 1 ? "s" : ""}`);
-        if (c.runs > 0) parts.push(`${c.runs} run${c.runs > 1 ? "s" : ""}`);
-        const detail = parts.length
-          ? el("span", { class: c.removed > 0 ? "out" : "" }, parts.join(" · "))
-          : el("span", null, Math.abs(c.score) > 1 ? "temples" : "temple");
-
-        board.append(el("li", { class: cls.join(" ") },
-          el("span", { class: "rank", ariaLabel: ranked ? `rang ${rank}` : "" }, ranked ? String(rank) : "–"),
-          el("div", { class: "who" },
-            el("div", { class: "name", title: c.account }, nameNode(c.account),
-              c.runner ? el("span", { class: "tag-runner", title: "Lance les temples : ses retraits ne comptent pas" }, "runner") : null),
-            el("div", { class: "bar" }, el("span", { style: `width:${pct}%` }))),
-          el("div", { class: "count" }, el("b", null, c.score > 0 ? String(c.score) : String(c.score).replace("-", "−")), detail)));
-      });
+      board.append(...boardRows(contributors));
     }
 
     // Activité
@@ -634,6 +708,8 @@
           el("time", { dateTime: when.toISOString(), title: dtf.format(when) }, ago(e.time))));
       }
     }
+
+    renderHistory(d.history || []);
 
     const every = Number(d.pollMinutes) || 2;
     $("foot").textContent = LOCAL
@@ -728,7 +804,7 @@
     const total = data ? data.totalAdded : 0;
     const players = data ? (data.contributors || []).length : 0;
     $("resetText").textContent = players
-      ? `Les ${plural(players, "participant repart", "participants repartent")} à 0 et restent dans la liste. Le classement actuel (${plural(total, "temple déposé", "temples déposés")}) est archivé.`
+      ? `Les ${plural(players, "participant repart", "participants repartent")} à 0 et restent dans la liste. Le classement actuel (${plural(total, "temple déposé", "temples déposés")}) reste consultable dans « Sessions précédentes », en bas de la page.`
       : "Les compteurs repartent à 0 à partir de maintenant.";
     resetDlg.showModal();
   });
