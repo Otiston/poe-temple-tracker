@@ -2,9 +2,9 @@
     "version":  1,
     "sessionStart":  1795708140,
     "resets":  0,
-    "cursorTime":  1795753494,
-    "lastPoll":  1795775743,
-    "lastSuccess":  1795775744,
+    "cursorTime":  1795775748,
+    "lastPoll":  1795776051,
+    "lastSuccess":  1795776051,
     "lastError":  null,
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
@@ -12,7 +12,8 @@
                     "baadboy#6876",
                     "apocalypses#2836",
                     "Otiston#3475",
-                    "Shaba87#5191"
+                    "Shaba87#5191",
+                    "The_Arkhatraz#1952"
                 ],
     "entries":  [
                     {
@@ -411,6 +412,14 @@
                         "id":  "4280056889",
                         "time":  1795753494,
                         "account":  "apocalypses#2836",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4280768824",
+                        "time":  1795775748,
+                        "account":  "The_Arkhatraz#1952",
                         "action":  "added",
                         "league":  "Covens",
                         "stash":  "Atziri"
