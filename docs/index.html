@@ -339,10 +339,11 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   // Deux modes : sur le PC du chef de guilde (localhost, avec admin) ou sur GitHub Pages
-  // (https://<owner>.github.io/<repo>/, lecture seule des scores publiés par son PC).
+  // (https://<owner>.github.io/<repo>/, scores publiés par GitHub Actions sur la branche data).
   const LOCAL = ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname);
   const REFRESH_MS = LOCAL ? 30000 : 60000;
-  const STALE_S = 45 * 60; // les tâches planifiées GitHub peuvent prendre 10-20 min de retard
+  // Synchro toutes les 5 min + cache GitHub de 5 min : au-delà de 20 min, quelque chose bloque.
+  const STALE_S = 20 * 60;
   let DATA_URL = "/api/stats";
   if (!LOCAL) {
     const owner = location.hostname.split(".")[0];
@@ -497,6 +498,7 @@
       : "Depuis le début de l'historique disponible";
 
     const s = $("status");
+    s.title = "";
     let detail = "";
     if (!d.configured) {
       s.className = "pill warn";
@@ -512,6 +514,7 @@
     } else if (d.lastSuccess) {
       s.className = "pill ok";
       s.textContent = `Synchronisé ${ago(d.lastSuccess)}`;
+      s.title = LOCAL ? "" : "Relecture du coffre toutes les 5 min ; la page peut avoir jusqu'à 5 min de retard (cache GitHub).";
     } else {
       s.className = "pill";
       s.textContent = "Première synchronisation…";
@@ -611,7 +614,7 @@
     const every = Number(d.pollMinutes) || 2;
     $("foot").textContent = LOCAL
       ? `Source : historique du coffre de guilde sur pathofexile.com · relu toutes les ${plural(every, "minute", "minutes")}`
-      : "Source : historique du coffre de guilde sur pathofexile.com · mise à jour automatique toutes les 5 à 15 min";
+      : "Source : historique du coffre de guilde sur pathofexile.com · mise à jour automatique toutes les 5 min";
   }
 
   // ---------- connexion admin

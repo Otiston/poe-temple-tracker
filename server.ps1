@@ -823,9 +823,9 @@ foreach ($e in $State.entries) {
 Save-State
 
 if ($Once) {
-    # Un passage : lecture de l'historique, reset si demande, puis data.json. Le fichier n'est
-    # reecrit que si le classement a change (champ "rev"), lors d'un reset, ou toutes les
-    # 15 min pour que la page sache que le suivi tourne toujours.
+    # Un passage : lecture de l'historique, reset si demande, puis data.json, reecrit a chaque
+    # passage pour que la page affiche l'heure de la derniere synchro. Le champ "rev" ne change
+    # que si le classement change : le workflow s'en sert pour ne pas empiler les commits.
 
     # Diagnostic sans fuite : longueur, format et debut du SHA-256 du cookie (irreversible),
     # pour verifier que le secret GitHub est bien le meme que celui du PC.
@@ -843,22 +843,17 @@ if ($Once) {
     $rev = Get-Sha256Hex (ConvertTo-Json -InputObject $view -Depth 8 -Compress)
     $now = Get-UnixNow
     $prevRev = ''
-    $prevAt = [int64]0
     if (Test-Path -LiteralPath $PublicPath) {
-        try {
-            $prev = [IO.File]::ReadAllText($PublicPath, $Utf8) | ConvertFrom-Json
-            $prevRev = [string](Get-Prop $prev 'rev' '')
-            $prevAt = [int64](Get-Prop $prev 'publishedAt' 0)
-        } catch { }
+        try { $prevRev = [string](Get-Prop ([IO.File]::ReadAllText($PublicPath, $Utf8) | ConvertFrom-Json) 'rev' '') } catch { }
     }
-    if ($Reset -or $rev -ne $prevRev -or ($now - $prevAt) -ge 900) {
-        $view | Add-Member -NotePropertyName lastSuccess -NotePropertyValue $State.lastSuccess
-        $view | Add-Member -NotePropertyName publishedAt -NotePropertyValue $now
-        $view | Add-Member -NotePropertyName rev -NotePropertyValue $rev
-        [IO.File]::WriteAllText($PublicPath, (ConvertTo-Json -InputObject $view -Depth 8 -Compress), $Utf8)
-        Write-Log "data.json mis a jour ($($view.totalAdded) temple(s) depose(s))"
+    $view | Add-Member -NotePropertyName lastSuccess -NotePropertyValue $State.lastSuccess
+    $view | Add-Member -NotePropertyName publishedAt -NotePropertyValue $now
+    $view | Add-Member -NotePropertyName rev -NotePropertyValue $rev
+    [IO.File]::WriteAllText($PublicPath, (ConvertTo-Json -InputObject $view -Depth 8 -Compress), $Utf8)
+    if ($Reset -or $rev -ne $prevRev) {
+        Write-Log "data.json : classement mis a jour ($($view.totalAdded) temple(s) depose(s))"
     } else {
-        Write-Log 'Classement inchange : rien a publier'
+        Write-Log 'data.json : classement inchange, heure de synchro mise a jour'
     }
     exit 0
 }

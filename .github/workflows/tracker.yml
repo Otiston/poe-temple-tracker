@@ -43,6 +43,9 @@ jobs:
         with:
           ref: data
           path: data-branch
+          # 2 commits : le precedent doit etre present pour remplacer une simple "heure de
+          # synchro" (amend) sans toucher a l'historique des scores.
+          fetch-depth: 2
 
       - name: Lire l'historique du coffre de guilde
         shell: powershell
@@ -61,13 +64,28 @@ jobs:
       - name: Publier le classement
         shell: bash
         working-directory: data-branch
+        # Classement change : nouveau commit. Seule l'heure de synchro change : on remplace le
+        # commit "heure de synchro" precedent, pour ne pas empiler 288 commits par jour.
         run: |
           if [ -z "$(git status --porcelain -- data.json)" ]; then
-            echo "Classement inchange : rien a publier."
+            echo "data.json inchange : rien a publier."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          beat="Derniere synchro (classement inchange)"
+          newrev=$(grep -o '"rev":"[0-9a-f]*"' data.json || true)
+          oldrev=$(git show HEAD:data.json 2>/dev/null | grep -o '"rev":"[0-9a-f]*"' || true)
+          old=$(git rev-parse HEAD)
           git add data.json state.json
-          git commit -q -m "Scores mis a jour"
-          git push -q origin HEAD:data
+          if [ -n "$newrev" ] && [ "$newrev" = "$oldrev" ] && [ "$(git log -1 --format=%s)" = "$beat" ] && git rev-parse -q --verify HEAD~1 >/dev/null; then
+            git commit -q --amend -m "$beat"
+            git push -q --force-with-lease=data:"$old" origin HEAD:data
+            echo "Heure de synchro publiee (commit precedent remplace)."
+          else
+            msg="Scores mis a jour"
+            if [ -n "$newrev" ] && [ "$newrev" = "$oldrev" ]; then msg="$beat"; fi
+            git commit -q -m "$msg"
+            git push -q origin HEAD:data
+            echo "Publie : $msg"
+          fi
