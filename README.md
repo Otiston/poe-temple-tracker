@@ -110,9 +110,11 @@ affichera des échecs (401) : crée un nouveau jeton et remplace-le dans l'en-t�
 ### À savoir
 
 - Avec cron-job.org, une synchro part toutes les 5 minutes et met à jour l'heure affichée
-  « Synchronisé il y a … » sur la page. Avec le cache de GitHub (~5 min), la page a en
-  général de 1 à 10 minutes de retard. Si elle affiche « Pas de mise à jour depuis … » (plus
-  de 20 min), regarde l'historique de cron-job.org.
+  « Synchronisé il y a … » sur la page, qui reste donc entre 0 et 6 minutes. La page lit
+  l'API GitHub (60 lectures/heure par connexion) ; au-delà, elle passe sur
+  raw.githubusercontent.com, qui peut avoir 5 minutes de retard en plus.
+  Si elle affiche « Pas de mise à jour depuis … » (plus de 20 min), regarde l'historique de
+  cron-job.org.
 - Si le POESESSID expire (déconnexion du site), la page affiche « Synchro en échec » :
   récupère le nouveau cookie et relance la commande `gh secret set` ci-dessus.
 - GitHub met en pause les tâches planifiées d'un dépôt public sans activité pendant 60 jours ;
