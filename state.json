@@ -2,14 +2,10 @@
     "version":  1,
     "sessionStart":  1795824723,
     "resets":  2,
-    "cursorTime":  1795862048,
-    "lastPoll":  1795863681,
-    "lastSuccess":  1795863343,
-    "lastError":  {
-                      "code":  "forbidden",
-                      "detail":  "HTTP 403",
-                      "time":  1795863681
-                  },
+    "cursorTime":  1795863576,
+    "lastPoll":  1795863941,
+    "lastSuccess":  1795863942,
+    "lastError":  null,
     "salt":  "7ae253cb452d3daa46ff7c3eb459a273f3ee03b4279b2c8f565d06551c0dcfbd",
     "members":  [
                     "Narberal_gamma#0313",
@@ -87,6 +83,14 @@
                     {
                         "id":  "4284029641",
                         "time":  1795861116,
+                        "account":  "Narberal_gamma#0313",
+                        "action":  "added",
+                        "league":  "Covens",
+                        "stash":  "Atziri"
+                    },
+                    {
+                        "id":  "4284128010",
+                        "time":  1795863576,
                         "account":  "Narberal_gamma#0313",
                         "action":  "added",
                         "league":  "Covens",
