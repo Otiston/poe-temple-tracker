@@ -2,15 +2,16 @@
 <#
     Active le bouton Admin (reset / synchro) sur la page GitHub.
 
-    Le script demande un jeton GitHub "fine-grained" limite a ce depot avec le seul droit
-    "Actions : Read and write", le chiffre avec le mot de passe admin de config.json
+    Le script demande un jeton GitHub "fine-grained" limite a ce depot avec le droit
+    "Actions : Read and write" (et "Contents : Read and write" pour le reset instantane, une
+    fois le depot protege : voir le README), le chiffre avec le mot de passe admin de config.json
     (PBKDF2-SHA256 600 000 tours + AES-256-CBC + HMAC-SHA256) et l'ecrit dans docs/admin.json,
     puis publie ce fichier. Sur la page, le mot de passe dechiffre le jeton dans le navigateur
-    du chef de guilde, qui lance alors la tache GitHub "reset" ou "sync".
+    du chef de guilde, qui fait alors le reset (directement sur la branche data, ou via la tache
+    GitHub "reset") ou lance la tache "sync".
 
     Le fichier publie ne contient que du chiffre : sans le mot de passe, le jeton est illisible.
-    Au pire, quelqu'un qui devinerait le mot de passe pourrait lancer des resets : choisis un
-    mot de passe long (12 caracteres ou plus) et ne le reutilise nulle part ailleurs.
+    Choisis un mot de passe long (12 caracteres ou plus) et ne le reutilise nulle part ailleurs.
 
     Usage (dans le dossier du projet) :  powershell -ExecutionPolicy Bypass -File tools\set-admin-token.ps1
 
@@ -154,6 +155,15 @@ try {
     exit 1
 }
 Write-Host 'Jeton OK.' -ForegroundColor Green
+
+# Reset instantane : il faut pouvoir ecrire la branche data. Test sans effet visible : un
+# "blob" Git que rien ne reference (GitHub le supprime tout seul).
+try {
+    $null = Invoke-GitHub 'POST' "repos/$Repo/git/blobs" $token @{ content = 'test'; encoding = 'utf-8' }
+    Write-Host 'Reset instantane : actif (permission Contents).' -ForegroundColor Green
+} catch {
+    Write-Host "Reset instantane : pas actif (pas de permission 'Contents : Read and write'). Le reset passera par la tache GitHub (1 a 2 min)." -ForegroundColor Yellow
+}
 
 # ------------------------------------------------------------------ chiffrement
 Write-Host 'Chiffrement avec ton mot de passe admin (quelques secondes)...'

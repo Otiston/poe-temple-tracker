@@ -120,9 +120,11 @@ function Import-State {
     $entries = New-Object System.Collections.ArrayList
     $archives = New-Object System.Collections.ArrayList
     $members = New-Object System.Collections.ArrayList
+    $pendingResets = New-Object System.Collections.ArrayList
     foreach ($e in @(Get-Prop $s 'entries' @())) { if ($null -ne $e) { [void]$entries.Add($e) } }
     foreach ($a in @(Get-Prop $s 'archives' @())) { if ($null -ne $a) { [void]$archives.Add($a) } }
     foreach ($m in @(Get-Prop $s 'members' @())) { if ($m) { [void]$members.Add([string]$m) } }
+    foreach ($p in @(Get-Prop $s 'pendingResets' @())) { if ($null -ne $p) { [void]$pendingResets.Add([int64]$p) } }
 
     $salt = [string](Get-Prop $s 'salt' '')
     if (-not $salt) { $salt = New-RandomHex 32 }
@@ -139,6 +141,8 @@ function Import-State {
         members      = $members
         entries      = $entries
         archives     = $archives
+        # Heures des resets faits depuis la page GitHub, pas encore archives ici (voir Invoke-PendingResets).
+        pendingResets = $pendingResets
     }
 }
 
@@ -368,14 +372,15 @@ function New-ScoreRow([string]$Account, $Cfg) {
 
 # Score de session : +1 par temple depose, -1 par temple retire (sauf runners).
 # Tous les participants connus apparaissent, meme a 0.
-function Get-Summary($Cfg) {
+# $Before : ne compte que les mouvements anterieurs (session close par un reset a cette heure).
+function Get-Summary($Cfg, [int64]$Before = [int64]::MaxValue) {
     $start = [int64]$State.sessionStart
     $byAccount = @{}
     foreach ($m in $State.members) { $byAccount[[string]$m] = New-ScoreRow ([string]$m) $Cfg }
 
     $session = New-Object System.Collections.ArrayList
     foreach ($e in $State.entries) {
-        if ([int64]$e.time -lt $start) { continue }
+        if ([int64]$e.time -lt $start -or [int64]$e.time -ge $Before) { continue }
         $acc = [string]$e.account
         $row = $byAccount[$acc]
         if ($null -eq $row) { $row = New-ScoreRow $acc $Cfg; $byAccount[$acc] = $row }
@@ -458,32 +463,54 @@ function Get-History {
 
 # Archive le classement en cours dans state.json (affiche dans "Sessions precedentes")
 # puis repart de zero. Une session sans aucun mouvement (ex. double reset) n'est pas archivee.
-function Reset-Session($Cfg) {
+# $At : heure du reset (reset fait depuis la page) ; les mouvements d'avant vont dans la session
+# archivee, ceux d'apres dans la nouvelle. Sans $At : reset immediat.
+function Reset-Session($Cfg, [int64]$At = 0) {
     $now = Get-UnixNow
-    $s = Get-Summary $Cfg
+    if ($At -le 0) {
+        # Tout ce qui est deja connu est archive : la nouvelle session commence apres le dernier
+        # mouvement connu (sinon un depot dans la meme seconde compterait deux fois).
+        $At = $now
+        foreach ($e in $State.entries) { if ([int64]$e.time -ge $At) { $At = [int64]$e.time + 1 } }
+    } elseif ($At -gt $now) {
+        $At = $now
+    }
+    if ($At -lt [int64]$State.sessionStart) { $At = [int64]$State.sessionStart }
+
+    $s = Get-Summary $Cfg $At
     if ($s.totalAdded + $s.totalRemoved + $s.totalRuns -gt 0) {
         $rows = @($s.contributors | ForEach-Object {
                 [pscustomobject]@{ account = $_.account; score = $_.score; added = $_.added; removed = $_.removed; runs = $_.runs; runner = $_.runner }
             })
         [void]$State.archives.Add([pscustomobject]@{
                 start        = $State.sessionStart
-                end          = $now
+                end          = $At
                 totalAdded   = $s.totalAdded
                 totalRemoved = $s.totalRemoved
                 totalRuns    = $s.totalRuns
                 contributors = $rows
             })
     }
-    # Tout ce qui est deja connu vient d'etre archive : la nouvelle session commence apres
-    # le dernier mouvement connu (sinon un depot dans la meme seconde compterait deux fois).
-    $start = $now
-    foreach ($e in $State.entries) { if ([int64]$e.time -ge $start) { $start = [int64]$e.time + 1 } }
-    $State.sessionStart = $start
+    $State.sessionStart = $At
     $State.resets = [int]$State.resets + 1
-    $State.entries = New-Object System.Collections.ArrayList
+    $keep = New-Object System.Collections.ArrayList
+    foreach ($e in $State.entries) { if ([int64]$e.time -ge $At) { [void]$keep.Add($e) } }
+    $State.entries = $keep
     $Seen.Clear()
+    foreach ($e in $keep) { [void]$Seen.Add([string]$e.id) }
     Save-State
     Write-Log "Session reinitialisee ($($s.totalAdded) temple(s) archive(s))"
+}
+
+# Reset fait depuis la page GitHub : la page a deja publie le classement remis a 0 et note
+# l'heure du clic dans state.json (pendingResets). Ici, juste apres avoir relu l'historique,
+# on archive pour de bon : les depots faits juste avant le clic (pas encore lus par la page)
+# rejoignent ainsi la session archivee.
+function Invoke-PendingResets($Cfg) {
+    if ($State.pendingResets.Count -eq 0) { return }
+    $list = @($State.pendingResets | ForEach-Object { [int64]$_ } | Sort-Object)
+    $State.pendingResets = New-Object System.Collections.ArrayList
+    foreach ($at in $list) { Reset-Session $Cfg $at }
 }
 
 # ---------------------------------------------------------------- publication GitHub
@@ -649,6 +676,7 @@ function Publish-Data([switch]$Force) {
 
 function Invoke-Sync {
     try { Invoke-Poll } catch { Write-Log "Erreur de synchro : $($_.Exception.Message)" }
+    try { Invoke-PendingResets (Get-Config) } catch { Write-Log "Erreur de reset : $($_.Exception.Message)" }
     try { Publish-Data } catch { $script:Pub.error = $_.Exception.Message; Write-Log "Erreur de publication : $($_.Exception.Message)" }
 }
 
@@ -850,6 +878,8 @@ if ($Once) {
     Remove-Variable sessid
 
     try { Invoke-Poll } catch { Write-Log "Erreur de synchro : $($_.Exception.Message)" }
+    # Meme si la lecture a echoue : la page affiche deja la nouvelle session, on ne revient pas en arriere.
+    Invoke-PendingResets $startupConfig
     if ($Reset) { Reset-Session $startupConfig }
     if (-not $PublicPath) { $PublicPath = Join-Path $DataDir 'data.json' }
 

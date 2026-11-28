@@ -45,8 +45,16 @@ permet de vérifier que c'est le bon cookie sans jamais l'afficher.
 ### Remettre tout le monde à 0 (toi seulement)
 
 **Depuis la page** : en bas, **🔒 Admin** → ton mot de passe admin (celui de `config.json`) →
-**Remettre tout le monde à 0**. Le reset est fait par GitHub : la page se met à jour d'ici
-quelques minutes. Il faut l'activer une fois (voir ci-dessous).
+**Remettre tout le monde à 0**. Il faut l'activer une fois (voir ci-dessous).
+
+- **Reset instantané** (jeton avec la permission *Contents*) : la page écrit elle-même la
+  nouvelle session. Tu vois tout le monde à 0 tout de suite ; les autres joueurs le voient au
+  prochain rafraîchissement automatique de leur page (moins d'une minute). La page relance
+  aussitôt une synchro : les temples déposés juste avant ton clic (pas encore lus) sont ajoutés
+  à la session archivée, ceux déposés après comptent dans la nouvelle. Pendant cette minute, la
+  session archivée affiche « vérification des derniers dépôts… ».
+- **Sans la permission *Contents*** : le reset passe par la tâche GitHub (1 à 2 minutes), et
+  la barre admin le signale.
 
 **Depuis GitHub** (toujours possible) : <https://github.com/Otiston/poe-temple-tracker/actions/workflows/tracker.yml>
 → **Run workflow** → **reset** → **Run workflow**. Seuls les comptes qui ont les droits sur le
@@ -61,15 +69,17 @@ Le choix **sync** force une relecture immédiate de l'historique.
 ### Activer le bouton Admin de la page (une fois)
 
 Une page GitHub n'a pas de serveur pour vérifier un mot de passe. Le bouton utilise donc un
-jeton GitHub qui ne peut faire qu'une chose : lancer la tâche de ce dépôt. Ce jeton est publié
-**chiffré avec ton mot de passe admin**, et c'est ton navigateur qui le déchiffre quand tu
-tapes le mot de passe.
+jeton GitHub limité à ce dépôt : lancer la tâche, et (pour le reset instantané) écrire les
+scores. Ce jeton est publié **chiffré avec ton mot de passe admin**, et c'est ton navigateur
+qui le déchiffre quand tu tapes le mot de passe.
 
 1. Crée le jeton : github.com → ta photo → **Settings** → **Developer settings** →
    **Personal access tokens** → **Fine-grained tokens** → **Generate new token**.
    - Nom : `temple-tracker-reset`, expiration : la plus longue proposée.
    - **Repository access** : *Only select repositories* → `poe-temple-tracker`.
-   - **Permissions** → **Repository permissions** → **Actions** : *Read and write* (rien d'autre).
+   - **Permissions** → **Repository permissions** → **Actions** : *Read and write*.
+   - Pour le reset instantané, aussi **Contents** : *Read and write* — seulement une fois le
+     dépôt protégé (voir « Sécurité du reset instantané » ci-dessous).
    - **Generate token**, puis copie-le (`github_pat_…`).
 2. Dans le dossier du projet, lance :
 
@@ -82,11 +92,26 @@ powershell -ExecutionPolicy Bypass -File tools\set-admin-token.ps1
    bouton apparaît sur la page en 1 à 10 minutes.
 
 - La version chiffrée est publique : garde un mot de passe admin **long** (12 caractères ou
-  plus) et utilisé nulle part ailleurs. Au pire, quelqu'un qui le devinerait pourrait lancer
-  des resets ; il ne pourrait rien faire d'autre sur ton compte.
+  plus) et utilisé nulle part ailleurs. Avec la seule permission *Actions*, quelqu'un qui le
+  devinerait pourrait lancer des resets, rien d'autre.
+- Ajouter une permission à un jeton existant (son nom → **Edit**) ne change pas le jeton :
+  pas besoin de relancer le script.
 - Changer de mot de passe : modifie `adminPassword` dans `config.json` et relance le script.
 - Jeton expiré (message sur la page) : crée-en un nouveau et relance le script.
 - Désactiver : supprime `docs/admin.json` du dépôt et supprime le jeton sur GitHub.
+
+### Sécurité du reset instantané
+
+La permission *Contents* permet d'écrire dans **tout** le dépôt, code compris. Sans protection,
+quelqu'un qui devinerait le mot de passe admin pourrait modifier le code lancé par la tâche
+GitHub et lui faire envoyer ton POESESSID ailleurs. Avant d'ajouter *Contents* au jeton :
+
+- la branche `main` (le code et la page) est protégée : elle ne change que par une
+  *pull request*, que ce jeton ne peut ni créer ni fusionner ;
+- le POESESSID est rangé dans l'environnement `poe` du dépôt, réservé à la branche `main` :
+  une tâche lancée depuis une autre branche ne le reçoit pas.
+
+Le jeton ne peut alors modifier que les scores (branche `data`), et lancer la tâche.
 
 ### Relance automatique fiable (cron-job.org)
 
@@ -153,7 +178,8 @@ Pour ne pas se mélanger avec la version GitHub, laisse `"githubRepo": ""` dans 
 ## Fichiers
 
 - `server.ps1` : le suivi (lecture de l'historique, comptage, reset, page locale).
-- `.github/workflows/tracker.yml` : la tâche GitHub Actions (toutes les 5 min, sync/reset).
+- `.github/workflows/tracker.yml` : la tâche GitHub Actions (toutes les 5 min, sync/reset ;
+  archive aussi pour de bon les resets faits depuis la page).
 - `docs/index.html` : la page (servie par GitHub Pages, et en local par `start.bat`).
 - `config.actions.json` : réglages de la version GitHub (aucun secret).
 - `tools/set-admin-token.ps1` : active le bouton Admin de la page GitHub (jeton chiffré).

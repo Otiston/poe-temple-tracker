@@ -173,6 +173,7 @@
   .past .when { min-width: 0; }
   .past .num { font: 600 15.5px/1.2 var(--serif); color: var(--text); }
   .past .range { margin-top: 2px; font-size: 12.5px; color: var(--faint); }
+  .past .range .check { color: var(--warn); }
   .past .sum { text-align: right; font-size: 13px; color: var(--muted); }
   .past .sum b { display: block; font: 600 19px/1.1 var(--serif); color: var(--gold-2); font-variant-numeric: tabular-nums; }
   .past .sum .win { white-space: nowrap; }
@@ -479,13 +480,16 @@
   }
 
   // ---------- admin sur la page GitHub
-  // admin.json contient un jeton GitHub (droit unique : lancer la tâche de ce dépôt) chiffré
-  // avec le mot de passe admin (PBKDF2-SHA256 + AES-CBC + HMAC, cf. tools/set-admin-token.ps1).
-  // Le mot de passe le déchiffre ici, dans le navigateur ; rien n'est envoyé ailleurs qu'à GitHub.
+  // admin.json contient un jeton GitHub limité à ce dépôt (lancer la tâche ; écrire la branche
+  // data pour le reset instantané) chiffré avec le mot de passe admin (PBKDF2-SHA256 + AES-CBC
+  // + HMAC, cf. tools/set-admin-token.ps1). Le mot de passe le déchiffre ici, dans le
+  // navigateur ; rien n'est envoyé ailleurs qu'à GitHub.
   let adminCfg = null;
   let ghToken = null;
   let pending = null;
   let fastUntil = 0;
+  let adminHint = "";
+  const DATA_BRANCH = "data";
 
   const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
   async function unlock(blob, password) {
@@ -519,6 +523,78 @@
     return `GitHub a refusé la demande (HTTP ${r.status}).`;
   }
 
+  // ---------- reset instantané
+  // La page écrit elle-même la nouvelle session sur la branche data (un seul commit avec
+  // data.json et state.json) : tout le monde voit les compteurs à 0 sans attendre de tâche.
+  // L'heure du clic est notée dans state.json (pendingResets) ; la synchro lancée juste après
+  // relit le coffre et range les dépôts faits juste avant le clic dans la session archivée.
+  async function gh(path, method = "GET", body, accept = "application/vnd.github+json") {
+    const r = await fetch(`https://api.github.com/repos/${adminCfg.repo}/${path}`, {
+      method,
+      cache: "no-store",
+      headers: Object.assign({ Authorization: `Bearer ${ghToken}`, Accept: accept },
+        body ? { "Content-Type": "application/json" } : {}),
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
+    return r.json();
+  }
+  // Fichier de la branche data tel qu'il est dans ce commit précis (jamais de version en cache).
+  const ghFile = (name, sha) => gh(`contents/${name}?ref=${sha}`, "GET", null, "application/vnd.github.raw+json");
+
+  // Nouvelle session à partir du classement publié (data.json) : la session en cours part
+  // dans « Sessions précédentes », tous les joueurs restent dans la liste à 0.
+  function resetView(state, pub) {
+    const waiting = (state.pendingResets || []).map(Number);
+    // Session affichée = celle de state.json, ou celle du dernier reset pas encore archivé par la synchro.
+    if (pub.sessionStart !== (waiting.length ? Math.max(...waiting) : state.sessionStart)) {
+      throw new Error("data.json et state.json ne correspondent pas");
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const at = Math.max(now, (pub.sessionStart || 0) + 1, ...waiting.map((t) => t + 1));
+    const moves = (pub.totalAdded || 0) + (pub.totalRemoved || 0) + (pub.totalRuns || 0);
+    const contributors = pub.contributors || [];
+    const archived = moves ? [{
+      start: pub.sessionStart, end: at,
+      totalAdded: pub.totalAdded || 0, totalRemoved: pub.totalRemoved || 0, totalRuns: pub.totalRuns || 0,
+      contributors: contributors.map(({ account, score, added, removed, runs, runner }) => ({ account, score, added, removed, runs, runner })),
+      pending: true
+    }] : [];
+    const zero = contributors
+      .map((c) => ({ account: c.account, score: 0, added: 0, removed: 0, runs: 0, runner: !!c.runner, lastAdded: 0 }))
+      .sort((a, b) => a.account.localeCompare(b.account, "fr", { sensitivity: "base" }));
+    const view = Object.assign({}, pub, {
+      sessionStart: at, totalAdded: 0, totalRemoved: 0, totalRuns: 0,
+      contributors: zero, recent: [], history: archived.concat(pub.history || []), publishedAt: now
+    });
+    delete view.rev;
+    return { state: Object.assign({}, state, { pendingResets: waiting.concat(at) }), view };
+  }
+
+  async function instantReset() {
+    for (let attempt = 1; ; attempt++) {
+      const head = (await gh(`git/ref/heads/${DATA_BRANCH}`)).object.sha;
+      const [commit, state, pub] = await Promise.all([
+        gh(`git/commits/${head}`), ghFile("state.json", head), ghFile("data.json", head)]);
+      const next = resetView(state, pub);
+      const tree = await gh("git/trees", "POST", {
+        base_tree: commit.tree.sha,
+        tree: [
+          { path: "state.json", mode: "100644", type: "blob", content: JSON.stringify(next.state, null, 2) },
+          { path: "data.json", mode: "100644", type: "blob", content: JSON.stringify(next.view) }
+        ]
+      });
+      const made = await gh("git/commits", "POST", { message: "Reset depuis la page", tree: tree.sha, parents: [head] });
+      try {
+        // force: false : refusé si la tâche GitHub a publié entre-temps ; on recommence alors sur sa version.
+        await gh(`git/refs/heads/${DATA_BRANCH}`, "PATCH", { sha: made.sha, force: false });
+        return next.view;
+      } catch (e) {
+        if (e.status !== 422 || attempt >= 3) throw e;
+      }
+    }
+  }
+
   async function load() {
     try {
       const next = await fetchData();
@@ -527,8 +603,8 @@
       data = next;
       skewMs = LOCAL && data.now ? data.now * 1000 - Date.now() : 0;
       // Demande admin terminée quand les scores publiés en tiennent compte.
-      if (pending && (pending.action === "reset" ? data.sessionStart >= pending.at - 60 : (data.publishedAt || 0) >= pending.at)) {
-        toast(pending.action === "reset" ? "Nouvelle session : tout le monde repart de 0" : "Historique relu");
+      if (pending && (pending.action === "reset" ? data.sessionStart >= pending.at - 60 : (data.publishedAt || 0) > pending.at)) {
+        if (!pending.afterReset) toast(pending.action === "reset" ? "Nouvelle session : tout le monde repart de 0" : "Historique relu");
         pending = null;
       }
       render();
@@ -599,7 +675,8 @@
         el("summary", null,
           el("div", { class: "when" },
             el("div", { class: "num" }, `Session ${history.length - i}`),
-            el("div", { class: "range" }, `${dfPast.format(start)} → ${(sameDay ? tfPast : dfPast).format(end)}`)),
+            el("div", { class: "range" }, `${dfPast.format(start)} → ${(sameDay ? tfPast : dfPast).format(end)}`,
+              h.pending ? el("span", { class: "check", title: "La prochaine synchro ajoute les dépôts faits juste avant le reset" }, " · vérification des derniers dépôts…") : null)),
           el("div", { class: "sum" },
             el("b", null, plural(net, "temple", "temples")),
             top ? el("span", { class: "win" }, "🏆 ", nameNode(top.account), ` · ${top.score}`) : "aucun dépôt")),
@@ -653,9 +730,12 @@
     pub.replaceChildren();
     if (ghToken) {
       const runs = `https://github.com/${adminCfg.repo}/actions/workflows/${adminCfg.workflow}`;
-      if (pending) {
+      if (pending && pending.afterReset) {
+        pub.append("Reset fait · relecture du coffre pour les dépôts faits juste avant (≈ 1 min) · ");
+      } else if (pending) {
         pub.append(`${pending.action === "reset" ? "Reset demandé" : "Synchro demandée"} ${ago(pending.at)} : la page se met à jour d'ici quelques minutes · `);
       }
+      if (adminHint) pub.append(el("span", { class: "pub-err" }, adminHint), " · ");
       pub.append(el("a", { href: runs, target: "_blank", rel: "noopener" }, "voir les tâches sur GitHub"));
     }
     if (d.isAdmin && d.publish) {
@@ -815,8 +895,28 @@
     btn.textContent = "Réinitialisation…";
     try {
       if (!LOCAL) {
-        const err = await dispatch("reset");
-        toast(err || "Reset lancé sur GitHub : tout le monde repart de 0 d'ici quelques minutes");
+        let msg;
+        try {
+          data = await instantReset();
+          adminHint = "";
+          render();
+          msg = "Nouvelle session : tout le monde repart de 0";
+          // Relit le coffre tout de suite : les dépôts faits juste avant le clic rejoignent la session archivée.
+          const err = await dispatch("sync").catch(() => "GitHub injoignable");
+          if (!err && pending) pending.afterReset = true;
+        } catch (e) {
+          if (e.status === 401) {
+            msg = "Jeton GitHub expiré ou révoqué : relance tools/set-admin-token.ps1.";
+          } else {
+            // Jeton sans droit d'écriture (ou GitHub indisponible) : reset par la tâche GitHub.
+            if (e.status === 403 || e.status === 404) {
+              adminHint = "Reset instantané pas encore activé : le jeton n'a pas la permission « Contents » (voir le README).";
+            }
+            const err = await dispatch("reset");
+            msg = err || "Reset lancé sur GitHub : tout le monde repart de 0 d'ici 1 à 2 minutes";
+          }
+        }
+        toast(msg);
       } else {
         const r = await post("/api/reset");
         if (r.ok) toast("Nouvelle session : tout le monde repart de 0");

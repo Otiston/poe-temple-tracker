@@ -1,7 +1,9 @@
 # Suivi des temples sans PC allume : toutes les 5 minutes, GitHub relit l'historique du coffre
 # de guilde et publie le classement (data.json) sur la branche "data", lue par la page publique.
 #
-# Reset (chef de guilde uniquement) : onglet Actions > Temple tracker > Run workflow > "reset".
+# Reset (chef de guilde uniquement) : bouton Admin de la page (instantane : la page ecrit elle-meme
+# la nouvelle session sur la branche data, puis la synchro suivante range les tout derniers depots),
+# ou onglet Actions > Temple tracker > Run workflow > "reset".
 # Seuls les comptes avec un acces en ecriture au depot voient le bouton "Run workflow".
 #
 # Le POESESSID est un secret du depot (Settings > Secrets and variables > Actions > POESESSID) :
@@ -77,15 +79,26 @@ jobs:
           newrev=$(grep -o '"rev":"[0-9a-f]*"' data.json || true)
           oldrev=$(git show HEAD:data.json 2>/dev/null | grep -o '"rev":"[0-9a-f]*"' || true)
           old=$(git rev-parse HEAD)
+          # Un reset fait depuis la page pendant cette synchro a deja change la branche data :
+          # on ne l'ecrase pas, la synchro suivante (lancee par la page) repart de sa version.
+          push() {
+            if git push -q "$@"; then return 0; fi
+            remote=$(git ls-remote origin refs/heads/data | cut -f1)
+            if [ -n "$remote" ] && [ "$remote" != "$old" ]; then
+              echo "::notice::Branche data modifiee pendant la synchro (reset depuis la page) : rien publie, la synchro suivante reprend."
+              exit 0
+            fi
+            exit 1
+          }
           git add data.json state.json
           if [ -n "$newrev" ] && [ "$newrev" = "$oldrev" ] && [ "$(git log -1 --format=%s)" = "$beat" ] && git rev-parse -q --verify HEAD~1 >/dev/null; then
             git commit -q --amend -m "$beat"
-            git push -q --force-with-lease=data:"$old" origin HEAD:data
+            push --force-with-lease=data:"$old" origin HEAD:data
             echo "Heure de synchro publiee (commit precedent remplace)."
           else
             msg="Scores mis a jour"
             if [ -n "$newrev" ] && [ "$newrev" = "$oldrev" ]; then msg="$beat"; fi
             git commit -q -m "$msg"
-            git push -q origin HEAD:data
+            push origin HEAD:data
             echo "Publie : $msg"
           fi
